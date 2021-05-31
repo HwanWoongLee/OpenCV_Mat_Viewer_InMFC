@@ -5,6 +5,8 @@ using namespace cv;
 using namespace std;
 
 #define T_CHECK_FOCUS	    3009
+#define IDC_CHECK_BOX	    3010
+
 #define COLOR_MENU          RGB(45, 45, 48)
 #define COLOR_BACKGROUND    RGB(10, 10, 18)
 #define MAX_ZOOM            10.0
@@ -15,18 +17,19 @@ class CTMatView : public CWnd {
     DECLARE_DYNAMIC(CTMatView)
 
     enum eBTN_ID {
-        eBTN_SAVE = 4009,
-        eBTN_LOAD       ,
+        eBTN_SAVE = 4009    ,
+        eBTN_LOAD           ,
     };
 
     enum eRECT {
-        eRECT_WND = 0   ,
-        eRECT_PICTURE   ,
-        eRECT_MENU      ,
-        eRECT_ZOOM      ,
-        eRECT_COORD     ,
-        eRECT_PALETTE   ,
-        eRECT_NUM       ,
+        eRECT_WND = 0       ,
+        eRECT_PICTURE       ,
+        eRECT_MENU          ,
+        eRECT_ZOOM          ,
+        eRECT_COORD         ,
+        eRECT_NAVIGATION    ,
+        eRECT_PALETTE       ,
+        eRECT_NUM           ,
     };
 
 public:
@@ -48,7 +51,7 @@ private:
     void            SetImage(cv::Mat image);
     void            SetRectArea(CRect rect);
     void            SetParentWnd();
-    void            SetZoomRect(double dZoom, bool bZoomin = true);
+    void            SetZoomRect(double dZoom, bool bZoomIn = true);
     void            DisplayNavImage(HDC& hdc, BITMAPINFO& bitmapInfo);
 
     BOOL            LoadImageFile();
@@ -80,8 +83,8 @@ private:
     // Menu
     CMFCButton	    m_btnLoad;
     CMFCButton	    m_btnSave;
-
-
+    CButton         m_checkBox;
+    CBrush          m_brush;
 
 
 
@@ -96,4 +99,5 @@ public:
     virtual BOOL	OnCommand(WPARAM wParam, LPARAM lParam);
     afx_msg BOOL    OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
     afx_msg void    OnMouseMove(UINT nFlags, CPoint point);
+    afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };

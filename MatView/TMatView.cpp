@@ -15,6 +15,7 @@ BEGIN_MESSAGE_MAP(CTMatView, CWnd)
     ON_WM_TIMER()
     ON_WM_MOUSEWHEEL()
     ON_WM_MOUSEMOVE()
+    ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
 
 
@@ -36,6 +37,8 @@ CTMatView::CTMatView(cv::Mat image, CRect rect) {
 CTMatView::~CTMatView() {
     if (m_pwndParent)
         m_pwndParent = nullptr;
+
+    m_brush.DeleteObject();
 }
 
 void CTMatView::InitMatView() {
@@ -141,7 +144,9 @@ void CTMatView::DisplayImage(HDC& hdc, cv::Mat& image) {
         SRCCOPY);
 
     // Navigation
-    DisplayNavImage(hdc, bitmapInfo);
+    if (m_checkBox.GetCheck()) {
+        DisplayNavImage(hdc, bitmapInfo);
+    }
 
     return;
 }
@@ -153,8 +158,8 @@ void CTMatView::DisplayNavImage(HDC& hdc, BITMAPINFO& bitmapInfo) {
 
     cv::Mat showNavImage = m_navImage.clone();
 
-    cv::Point lt = ClientToImage(m_rectZoom.TopLeft(), m_rectImage, m_orgImage);
-    cv::Point br = ClientToImage(m_rectZoom.BottomRight(), m_rectImage, m_orgImage);
+    cv::Point lt = ClientToImage(m_rectZoom.TopLeft(),      m_rectImage, m_orgImage);
+    cv::Point br = ClientToImage(m_rectZoom.BottomRight(),  m_rectImage, m_orgImage);
 
     cv::rectangle(showNavImage, cv::Rect(lt.x, lt.y, br.x - lt.x, br.y - lt.y), cv::Scalar(0, 0, 255), showNavImage.cols * 0.01);
     cv::resize(showNavImage, showNavImage, cv::Size(GDI_WIDTHBYTES(showNavImage.cols * 8), showNavImage.rows));
@@ -218,13 +223,22 @@ void CTMatView::CreateMenu() {
     double dh = rect.Height();
     double dw = rect.Width() / 30;
 
-    CRect rectLoad          = CRect(dw * 0, 0, dw * 2, dh);
-    CRect rectSave          = CRect(dw * 2, 0, dw * 4, dh);
-    m_rect[eRECT_ZOOM]      = CRect(dw * 5, 0, dw * 8, dh);
-    m_rect[eRECT_COORD]     = CRect(dw * 8, 0, dw * 30, dh);
+    CRect rectLoad              = CRect(dw * 0,     0, dw * 2,  dh);
+    CRect rectSave              = CRect(dw * 2,     0, dw * 4,  dh);
+    m_rect[eRECT_ZOOM]          = CRect(dw * 5,     0, dw * 8,  dh);
+    m_rect[eRECT_COORD]         = CRect(dw * 8,     0, dw * 25, dh);
+    m_rect[eRECT_NAVIGATION]    = CRect(dw * 26,    0, dw * 30, dh);
 
     CreateButton(m_btnLoad, rectLoad, eBTN_LOAD, _T("Load"));
     CreateButton(m_btnSave, rectSave, eBTN_SAVE, _T("Save"));
+
+    if (!m_checkBox.Create(_T("Nav"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, m_rect[eRECT_NAVIGATION], this, IDC_CHECK_BOX)) {
+        MessageBox(_T("CheckBox create failed"));
+    }
+    else {
+        SetWindowTheme(m_checkBox.m_hWnd, _T(""), _T(""));
+        m_checkBox.SetCheck(true);
+    }
 
     return;
 }
@@ -341,10 +355,10 @@ cv::Point2d CTMatView::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat 
     return ptImage;
 }
 
-void CTMatView::SetZoomRect(double dZoom, bool bZoomin) {
+void CTMatView::SetZoomRect(double dZoom, bool bZoomIn) {
     double dw, dh, dx, dy;
 
-    if (bZoomin) {
+    if (bZoomIn) {
         dw = m_rectZoom.Width();
         dh = m_rectZoom.Height();
         dx = m_rectZoom.left;
@@ -395,6 +409,8 @@ int CTMatView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
     SetTimer(T_CHECK_FOCUS, 100, nullptr);
     
+    m_brush.CreateSolidBrush(COLOR_MENU);
+
     return 0;
 }
 
@@ -448,17 +464,17 @@ void CTMatView::OnPaint()
     pDC.SetBkColor(RGB(255, 255, 255));
     pDC.DrawText(str, m_rect[eRECT_ZOOM], DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
     
-    //// test zoom rect
-    //CPen myPen, * pOldPen;
-    //CBrush clsBrush, *pclsBrush;
-    //myPen.CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
-    //pOldPen = pDC.SelectObject(&myPen);
-    //clsBrush.CreateStockObject(NULL_BRUSH);
-    //pclsBrush = pDC.SelectObject(&clsBrush);
-    ////pDC.Rectangle(m_rectImage);
-    //pDC.Rectangle(m_rectZoom);
-    //pDC.SelectObject(pOldPen);
-    //pDC.SelectObject(pclsBrush);
+    // // test zoom rect
+    // CPen myPen, * pOldPen;
+    // CBrush clsBrush, *pclsBrush;
+    // myPen.CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
+    // pOldPen = pDC.SelectObject(&myPen);
+    // clsBrush.CreateStockObject(NULL_BRUSH);
+    // pclsBrush = pDC.SelectObject(&clsBrush);
+    // //pDC.Rectangle(m_rectImage);
+    // pDC.Rectangle(m_rectZoom);
+    // pDC.SelectObject(pOldPen);
+    // pDC.SelectObject(pclsBrush);
 
     // Coordtrans
     str.Format(_T("Image [%.1lf, %.1lf] / View [%d, %d]"), m_ptImage.x, m_ptImage.y, m_ptView.x, m_ptView.y);
@@ -466,6 +482,7 @@ void CTMatView::OnPaint()
     pDC.SetTextColor(RGB(0, 0, 0));
     pDC.SetBkColor(RGB(255, 255, 255));
     pDC.DrawText(str, m_rect[eRECT_COORD], DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
+    
     
     //str.Format(_T("Rect : %d %d %d %d"), m_rectZoom.left, m_rectZoom.top, m_rectZoom.Width(), m_rectZoom.Height());
     //pDC.TextOutW(0, 100, str);
@@ -495,6 +512,10 @@ BOOL CTMatView::OnCommand(WPARAM wParam, LPARAM lParam)
         }
         case eBTN_LOAD: {
             LoadImageFile();
+            break;
+        }
+        case IDC_CHECK_BOX: {
+            Invalidate(FALSE);
             break;
         }
     }
@@ -543,10 +564,25 @@ void CTMatView::OnMouseMove(UINT nFlags, CPoint point)
         if (PtInRect(m_rectImage, point)) {
             m_ptView = point;
             m_ptImage = ClientToImage(point, m_rectImage, m_orgImage);
-            //m_ptImageToCenter = m_ptImage - cv::Point2d(m_orgImage.cols / 2, m_orgImage.rows / 2);
+
             InvalidateRect(m_rect[eRECT_COORD], FALSE);
         }
     }
 
     CWnd::OnMouseMove(nFlags, point);
+}
+
+
+HBRUSH CTMatView::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+    HBRUSH hbr = CWnd::OnCtlColor(pDC, pWnd, nCtlColor);
+    
+    if (pWnd->GetDlgCtrlID() == IDC_CHECK_BOX) {
+        pDC->SetTextColor(RGB(255, 255, 255));
+        pDC->SetBkMode(TRANSPARENT);
+
+        hbr = (HBRUSH)m_brush;
+    }
+
+    return hbr;
 }

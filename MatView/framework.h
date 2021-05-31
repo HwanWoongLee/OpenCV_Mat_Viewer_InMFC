@@ -38,7 +38,7 @@
 #pragma comment(lib, "opencv_world450.lib")
 #endif
 
-
+#pragma comment(lib, "UxTheme.lib")
 
 
 
