@@ -45,13 +45,14 @@ public:
 
     cv::Mat         GetImage() { return m_orgImage; }
     cv::Point2d     ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);
+    CPoint          ClientToView(CPoint pt);
+    cv::Point       ViewToImage(CPoint pt);
 
 
 private:
     void            SetImage(cv::Mat image);
     void            SetRectArea(CRect rect);
     void            SetParentWnd();
-    void            SetZoomRect(double dZoom, bool bZoomIn = true);
     void            DisplayNavImage(HDC& hdc, BITMAPINFO& bitmapInfo);
 
     BOOL            LoadImageFile();
@@ -73,12 +74,14 @@ private:
     CRect           m_rectImage;            // 실제 출력된 Image 영역.
     CRect           m_rectZoom;             // zoom area
     
-    cv::Point2d     m_ptImage;              // Image Mouse 좌표
+    cv::Point       m_ptImage;
     CPoint          m_ptView;
+    CPoint          m_ptOffset;
+    CPoint          m_ptLBDown;
 
     double          m_dZoom = 1.0;
-    
-    bool		    m_bFocus;				// MatView선택
+    bool            m_bLBDown = false;      // 마우스 왼클릭
+
 
     // Menu
     CMFCButton	    m_btnLoad;

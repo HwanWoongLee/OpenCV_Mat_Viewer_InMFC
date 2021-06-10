@@ -53,7 +53,8 @@ void CTMatView::InitMatView() {
     m_rectImage         = CRect();
     m_rectZoom          = CRect();
     m_dZoom             = 1.0;
-    m_bFocus            = false;
+
+    m_ptOffset          = CPoint(0, 0);
 }
 
 void CTMatView::DisplayImage(HDC& hdc, cv::Mat& image) {
@@ -133,6 +134,10 @@ void CTMatView::DisplayImage(HDC& hdc, cv::Mat& image) {
         dw = m_dZoom * dw;
         dh = m_dZoom * dh;
     }
+
+    // offset
+    dx -= m_ptOffset.x;
+    dy -= m_ptOffset.y;
 
     // 실직적으로 그리는 부분
     ::StretchDIBits(hdc,			            //출력대상 핸들
@@ -308,11 +313,11 @@ BOOL CTMatView::LoadImageFile() {
     }
     else {
         SetImage(loadImg);
-        //loadImg.copyTo(m_orgImage);
     }
 
-    m_showImage = m_orgImage.clone();
-    m_dZoom = 1.0;
+    m_ptOffset      = CPoint(0, 0);
+    m_showImage     = m_orgImage.clone();
+    m_dZoom         = 1.0;
     Invalidate(FALSE);
 
     return TRUE;
@@ -355,49 +360,21 @@ cv::Point2d CTMatView::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat 
     return ptImage;
 }
 
-void CTMatView::SetZoomRect(double dZoom, bool bZoomIn) {
-    double dw, dh, dx, dy;
-
-    if (bZoomIn) {
-        dw = m_rectZoom.Width();
-        dh = m_rectZoom.Height();
-        dx = m_rectZoom.left;
-        dy = m_rectZoom.top;
-    }
-    else {
-        dw = m_rectImage.Width();
-        dh = m_rectImage.Height();
-        dx = m_rectImage.left;
-        dy = m_rectImage.top;
-    }
-    double zw, zh, zx, zy;
-
-    zw = m_rectImage.Width() / dZoom;
-    zh = m_rectImage.Height() / dZoom;
-
-    if (dZoom > 1.0) {
-        zx = m_ptView.x - (zw / 2);
-        zy = m_ptView.y - (zh / 2);
-    }
-    else {
-        zx = (dx + (dw / 2)) - (zw / 2);
-        zy = (dy + (dh / 2)) - (zh / 2);
-    }
-
-    if (dZoom > 1.0) {
-        zx = zx < dx ? dx : zx;
-        zy = zy < dy ? dy : zy;
-        zx = zx + zw > dx + dw ? dx + dw - zw : zx;
-        zy = zy + zh > dy + dh ? dy + dh - zh : zy;
-    }
-
-    m_rectZoom = CRect(zx, zy, zx + zw, zy + zh);
-
-    InvalidateRect(m_rect[eRECT_PALETTE], FALSE);
-    
-    return;
+CPoint CTMatView::ClientToView(CPoint pt) {
+    return pt - m_rect[eRECT_PALETTE].TopLeft();
 }
 
+cv::Point CTMatView::ViewToImage(CPoint pt) {
+    cv::Point ptImage(0, 0);
+    if (!m_rectImage.IsRectEmpty()) {
+        ptImage = cv::Point(CPoint(pt - m_rectImage.TopLeft()).x, pt.y);
+        int x = m_orgImage.cols* ptImage.x / m_rectImage.Width();
+        int y = m_orgImage.rows* ptImage.y / m_rectImage.Height();
+        ptImage.x = x > 0 ? x : 0;
+        ptImage.y = y > 0 ? y : 0;
+    }
+    return ptImage / m_dZoom;
+}
 
 /////////////////////////////////////////////   Message
 
@@ -426,13 +403,16 @@ void CTMatView::OnShowWindow(BOOL bShow, UINT nStatus)
 
 void CTMatView::OnLButtonDown(UINT nFlags, CPoint point)
 {
-
+    if (PtInRect(m_rect[eRECT_PALETTE], point)) {
+        m_bLBDown = true;
+        m_ptLBDown = point + m_ptOffset;
+    }
     CWnd::OnLButtonDown(nFlags, point);
 }
 
 void CTMatView::OnLButtonUp(UINT nFlags, CPoint point)
 {
-
+    m_bLBDown = false;
     CWnd::OnLButtonUp(nFlags, point);
 }
 
@@ -477,7 +457,7 @@ void CTMatView::OnPaint()
     // pDC.SelectObject(pclsBrush);
 
     // Coordtrans
-    str.Format(_T("Image [%.1lf, %.1lf] / View [%d, %d]"), m_ptImage.x, m_ptImage.y, m_ptView.x, m_ptView.y);
+    str.Format(_T("Image [%d, %d] / View [%d, %d]"), m_ptImage.x, m_ptImage.y, m_ptView.x, m_ptView.y);
     pDC.Rectangle(m_rect[eRECT_COORD]);
     pDC.SetTextColor(RGB(0, 0, 0));
     pDC.SetBkColor(RGB(255, 255, 255));
@@ -527,7 +507,6 @@ BOOL CTMatView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
     if (!m_orgImage.empty()) {
         CPoint ptClient = pt;
         ScreenToClient(&ptClient);
-        m_ptView = ptClient;
 
         if (PtInRect(m_rect[eRECT_PALETTE], ptClient)) {
             if (zDelta > 0) {
@@ -537,7 +516,6 @@ BOOL CTMatView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
                 else {
                     m_dZoom = MAX_ZOOM;
                 }
-                SetZoomRect(m_dZoom, true);
             }
             else {
                 if (MIN_ZOOM < m_dZoom) {
@@ -546,7 +524,6 @@ BOOL CTMatView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
                 else {
                     m_dZoom = MIN_ZOOM;
                 }
-                SetZoomRect(m_dZoom, false);
             }
 
             Invalidate(FALSE);
@@ -559,13 +536,13 @@ BOOL CTMatView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 void CTMatView::OnMouseMove(UINT nFlags, CPoint point)
 {
     if (!m_orgImage.empty()) {
-        //ScreenToClient(&point);
+        m_ptView = ClientToView(point);
+        m_ptImage = ViewToImage(m_ptView + m_ptOffset);
+        InvalidateRect(m_rect[eRECT_COORD], FALSE);
 
-        if (PtInRect(m_rectImage, point)) {
-            m_ptView = point;
-            m_ptImage = ClientToImage(point, m_rectImage, m_orgImage);
-
-            InvalidateRect(m_rect[eRECT_COORD], FALSE);
+        if (m_bLBDown) {
+            m_ptOffset = m_ptLBDown - point;
+            InvalidateRect(m_rect[eRECT_PALETTE], FALSE);
         }
     }
 
