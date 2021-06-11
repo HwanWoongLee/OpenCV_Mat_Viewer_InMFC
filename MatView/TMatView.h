@@ -19,6 +19,7 @@ class CTMatView : public CWnd {
     enum eBTN_ID {
         eBTN_SAVE = 4009    ,
         eBTN_LOAD           ,
+        eBTN_FIT            ,
     };
 
     enum eRECT {
@@ -61,7 +62,7 @@ private:
     // Menu
     void            CreateMenu();
     void            CreateButton(CMFCButton& button, CRect rect, eBTN_ID btnID, LPCTSTR str = _T(""));
-
+    void            FitImage();
 
 private:
     CWnd*           m_pwndParent = nullptr;
@@ -86,6 +87,8 @@ private:
     // Menu
     CMFCButton	    m_btnLoad;
     CMFCButton	    m_btnSave;
+    CMFCButton	    m_btnFit;
+
     CButton         m_checkBox;
     CBrush          m_brush;
 

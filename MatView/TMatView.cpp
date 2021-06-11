@@ -230,12 +230,14 @@ void CTMatView::CreateMenu() {
 
     CRect rectLoad              = CRect(dw * 0,     0, dw * 2,  dh);
     CRect rectSave              = CRect(dw * 2,     0, dw * 4,  dh);
+    CRect rectFit               = CRect(dw * 4,     0, dw * 5,  dh);
     m_rect[eRECT_ZOOM]          = CRect(dw * 5,     0, dw * 8,  dh);
     m_rect[eRECT_COORD]         = CRect(dw * 8,     0, dw * 25, dh);
     m_rect[eRECT_NAVIGATION]    = CRect(dw * 26,    0, dw * 30, dh);
 
     CreateButton(m_btnLoad, rectLoad, eBTN_LOAD, _T("Load"));
     CreateButton(m_btnSave, rectSave, eBTN_SAVE, _T("Save"));
+    CreateButton(m_btnFit,  rectFit,  eBTN_FIT, _T("Fit"));
 
     if (!m_checkBox.Create(_T("Nav"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, m_rect[eRECT_NAVIGATION], this, IDC_CHECK_BOX)) {
         MessageBox(_T("CheckBox create failed"));
@@ -344,6 +346,14 @@ BOOL CTMatView::SaveImageFile() {
     }
 
     return TRUE;
+}
+
+void CTMatView::FitImage() {
+    m_dZoom = 1.0;
+    m_ptOffset = CPoint(0, 0);
+    Invalidate(FALSE);
+
+    return;
 }
 
 cv::Point2d CTMatView::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image) {
@@ -494,6 +504,10 @@ BOOL CTMatView::OnCommand(WPARAM wParam, LPARAM lParam)
             LoadImageFile();
             break;
         }
+        case eBTN_FIT: {
+            FitImage();
+            break;
+        }
         case IDC_CHECK_BOX: {
             Invalidate(FALSE);
             break;
@@ -510,20 +524,16 @@ BOOL CTMatView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 
         if (PtInRect(m_rect[eRECT_PALETTE], ptClient)) {
             if (zDelta > 0) {
-                if (MAX_ZOOM > m_dZoom) {
+                if (MAX_ZOOM > m_dZoom)
                     m_dZoom += 0.1;
-                }
-                else {
+                else
                     m_dZoom = MAX_ZOOM;
-                }
             }
             else {
-                if (MIN_ZOOM < m_dZoom) {
+                if (MIN_ZOOM < m_dZoom)
                     m_dZoom -= 0.1;
-                }
-                else {
+                else
                     m_dZoom = MIN_ZOOM;
-                }
             }
 
             Invalidate(FALSE);
