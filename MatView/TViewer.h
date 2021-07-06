@@ -19,6 +19,7 @@ public:
 	double			GetZoomRate() { return m_dZoom; }
 
 
+	CPoint			m_ptZoom;			// zoom 하는 중심(private)
 
 private:
 	cv::Point2d     ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);

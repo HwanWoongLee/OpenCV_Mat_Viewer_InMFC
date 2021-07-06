@@ -109,6 +109,8 @@ void TViewer::OnMouseMove(UINT nFlags, CPoint point)
 {
     if (!m_orgImage.empty()) {
         m_ptView = point;
+        m_ptZoom = CPoint(m_ptView.x / m_dZoom, m_ptView.y / m_dZoom);
+
         m_ptImage = ViewToImage(m_ptView + m_ptOffset);
 
         Invalidate(FALSE);
@@ -158,8 +160,8 @@ void TViewer::CalcZoomRect() {
     double dx = m_rectDraw.CenterPoint().x - dw / 2;
     double dy = m_rectDraw.CenterPoint().y - dh / 2;
 
-    //m_rectZoom = CRect(m_rectZoom.left, m_rectZoom.top, m_rectZoom.left + dw, m_rectZoom.top + dh);
-    m_rectZoom = CRect(dx, dy, dx + dw, dy + dh);
+    m_rectZoom = CRect(m_rectZoom.left, m_rectZoom.top, m_rectZoom.left + dw, m_rectZoom.top + dh);
+    //m_rectZoom = CRect(dx, dy, dx + dw, dy + dh);
 
     return;
 }
@@ -270,6 +272,12 @@ void TViewer::OnPaint()
             DisplayNavi(pDC.m_hDC, bitmapInfo);
         }
 	}
+
+
+    // test
+    CString str;
+    str.Format(_T("test [%d, %d]\n"), m_ptZoom.x, m_ptZoom.y);
+    TRACE(str);
 }
 
 

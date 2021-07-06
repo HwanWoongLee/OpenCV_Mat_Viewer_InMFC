@@ -285,7 +285,7 @@ void CTMatView::OnPaint()
     pDC.SetTextColor(RGB(0, 0, 0));
     pDC.SetBkColor(RGB(255, 255, 255));
     pDC.DrawText(str, m_rect[eRECT_COORD], DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
-    
+
     return;
 }
 
