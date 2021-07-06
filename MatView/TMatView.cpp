@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "TMatView.h"
-
+#include "TViewer.h"
 
 IMPLEMENT_DYNAMIC(CTMatView, CWnd)
 
@@ -16,6 +16,8 @@ BEGIN_MESSAGE_MAP(CTMatView, CWnd)
     ON_WM_MOUSEWHEEL()
     ON_WM_MOUSEMOVE()
     ON_WM_CTLCOLOR()
+    ON_WM_MOVE()
+    ON_WM_MOUSEMOVE()
 END_MESSAGE_MAP()
 
 
@@ -35,165 +37,29 @@ CTMatView::CTMatView(cv::Mat image, CRect rect) {
 }
 
 CTMatView::~CTMatView() {
-    if (m_pwndParent)
-        m_pwndParent = nullptr;
 
     m_brush.DeleteObject();
 }
 
 void CTMatView::InitMatView() {
-    m_orgImage          = cv::Mat();
-    m_showImage         = cv::Mat();
-    m_navImage          = cv::Mat();
 
     for (int i = 0; i < eRECT_NUM; ++i) {
         m_rect[i]       = CRect();
     }
 
-    m_rectImage         = CRect();
-    m_rectZoom          = CRect();
-    m_dZoom             = 1.0;
-
-    m_ptOffset          = CPoint(0, 0);
 }
 
-void CTMatView::DisplayImage(HDC& hdc, cv::Mat& image) {
-    if (image.empty())
-        return;
-
-    // 영상 가로길이는 4바이트의 배수여야한다...
-    cv::resize(image, image, cv::Size(GDI_WIDTHBYTES(image.cols * 8), image.rows));
-    
-    BITMAPINFO bitmapInfo;
-    bitmapInfo.bmiHeader.biYPelsPerMeter    = 0;
-    bitmapInfo.bmiHeader.biXPelsPerMeter    = 0;
-    bitmapInfo.bmiHeader.biBitCount         = 24;
-    bitmapInfo.bmiHeader.biWidth            = image.cols;
-    bitmapInfo.bmiHeader.biHeight           = image.rows;
-    bitmapInfo.bmiHeader.biPlanes           = 1;
-    bitmapInfo.bmiHeader.biSize             = sizeof(BITMAPINFOHEADER);
-    bitmapInfo.bmiHeader.biCompression      = BI_RGB;
-    bitmapInfo.bmiHeader.biClrImportant     = 0;
-    bitmapInfo.bmiHeader.biSizeImage        = 0;
-    
-    if (image.channels() == 3) {
-
-    }
-    else if (image.channels() == 1) {
-        cvtColor(image, image, cv::COLOR_GRAY2RGB);
-    }
-    else if (image.channels() == 4) {
-    }
-
-    cv::Mat drawImage;
-    flip(image, drawImage, 0);
-
-    double image_w      = drawImage.cols;
-    double image_h      = drawImage.rows;
-    double rect_w       = m_rect[eRECT_PICTURE].Width();
-    double rect_h       = m_rect[eRECT_PICTURE].Height();
-    double dRectRate    = rect_w / rect_h;
-    double dImageRate   = image_w / image_h;
-    int iGap            = m_rect[eRECT_PICTURE].top - m_rect[eRECT_WND].top;
-
-    // 비율에 맞춰서 크기 조정. 
-    int dx = 0, dy = 0, dw = 0, dh = 0;  // 그리는 좌표
-    if (dRectRate > dImageRate) {
-        dh = rect_h;
-        dw = dh * image_w / image_h;
-        dx = (rect_w - dw) / 2;
-        dy = 0;
-    }
-    else {
-        dw = rect_w;
-        dh = dw * image_h / image_w;
-        dy = (rect_h - dh) / 2;
-        dx = 0;
-    }
-
-    // 이미지 출력
-    ::SetStretchBltMode(hdc, COLORONCOLOR);		//모드 설정(안해주면 영상 축소 시 깨짐 현상)
-
-    // 검은색으로 초기화
-    CBrush brush;
-    brush.CreateSolidBrush(RGB(0, 0, 0));
-    FillRect(hdc, CRect(0, iGap, rect_w, rect_h + iGap), brush);
-
-    dy += iGap;
-    m_rectImage = CRect(dx, dy, dx + dw, dy + dh);
-
-    if (m_rectZoom.IsRectEmpty())
-        m_rectZoom = m_rectImage;
-
-    if (m_dZoom > 1.0) {
-        double x = m_rectZoom.left;
-        double y = m_rectZoom.top;
-    
-        dx = dx - ((x - dx) * m_dZoom);
-        dy = dy - ((y - dy) * m_dZoom);
-        dw = m_dZoom * dw;
-        dh = m_dZoom * dh;
-    }
-
-    // offset
-    dx -= m_ptOffset.x;
-    dy -= m_ptOffset.y;
-
-    // 실직적으로 그리는 부분
-    ::StretchDIBits(hdc,			            //출력대상 핸들
-        dx, dy, dw, dh,				            //출력대상 좌표
-        0, 0, drawImage.cols, drawImage.rows,	//원본의 좌표
-        drawImage.data,							//데이터 시작 주소
-        &bitmapInfo,							//BITMAPINFO 구조체 시작 주소
-        DIB_RGB_COLORS,
-        SRCCOPY);
-
-    // Navigation
-    if (m_checkBox.GetCheck()) {
-        DisplayNavImage(hdc, bitmapInfo);
-    }
-
-    return;
-}
-
-
-void CTMatView::DisplayNavImage(HDC& hdc, BITMAPINFO& bitmapInfo) {
-    if (m_navImage.empty())
-        return;
-
-    cv::Mat showNavImage = m_navImage.clone();
-
-    cv::Point lt = ClientToImage(m_rectZoom.TopLeft(),      m_rectImage, m_orgImage);
-    cv::Point br = ClientToImage(m_rectZoom.BottomRight(),  m_rectImage, m_orgImage);
-
-    cv::rectangle(showNavImage, cv::Rect(lt.x, lt.y, br.x - lt.x, br.y - lt.y), cv::Scalar(0, 0, 255), showNavImage.cols * 0.01);
-    cv::resize(showNavImage, showNavImage, cv::Size(GDI_WIDTHBYTES(showNavImage.cols * 8), showNavImage.rows));
-    flip(showNavImage, showNavImage, 0);
-
-    CRect rect;
-    GetWindowRect(rect);
-    ScreenToClient(rect);
-
-    ::StretchDIBits(hdc,
-        rect.right - m_rectImage.Width() * 0.3,
-        rect.bottom - m_rectImage.Height() * 0.3,
-        m_rectImage.Width() * 0.3, 
-        m_rectImage.Height() * 0.3,
-        0, 0, showNavImage.cols, showNavImage.rows,
-        showNavImage.data,
-        &bitmapInfo,
-        DIB_RGB_COLORS,
-        SRCCOPY);
-
-    return;
+void CTMatView::UpdateUI() {
+    InvalidateRect(m_rect[eRECT_COORD]);
+    InvalidateRect(m_rect[eRECT_ZOOM_RATE]);
 }
 
 void CTMatView::SetImage(cv::Mat image) {
     if (!image.empty()) {
-        m_orgImage = image.clone();
-        m_navImage = m_orgImage.clone();
-        if (m_navImage.channels() == 1)
-            cv::cvtColor(m_navImage, m_navImage, cv::COLOR_GRAY2BGR);
+        if (m_pViewer) {
+            m_pViewer->DrawView(image);
+            m_pViewer->FitImage();
+       }
     }
 }
 
@@ -201,25 +67,36 @@ void CTMatView::MoveWindow(CRect rect) {
     SetParentWnd();
     SetRectArea(rect);
 
+    CreateView();
     CreateMenu();
 }
+
 void CTMatView::SetParentWnd() {
     this->m_pwndParent = this->GetParent();
 }
 
 void CTMatView::SetRectArea(CRect rect) {
     //Set RectArea
-    m_rect[eRECT_WND]       = rect;
-    m_rect[eRECT_PICTURE]   = CRect(rect.left, rect.top + 25,   rect.right, rect.bottom);
-    m_rect[eRECT_MENU]      = CRect(rect.left, rect.top,        rect.right, rect.top + 25);
-    
-    m_rect[eRECT_PALETTE]   = CRect(0, 25, m_rect[eRECT_PICTURE].Width(), m_rect[eRECT_PICTURE].Height() + 25);
+    double dW = rect.Width();
+    double dH = rect.Height();
+
+    m_rect[eRECT_MENU] = CRect(0, 0, dW, 25);
+    m_rect[eRECT_VIEW] = CRect(0, 25, dW, dH);
 
     //Set window size    
     SetWindowPos(NULL,
         rect.left, rect.top,
         rect.Width(), rect.Height(),
         SWP_NOREPOSITION);
+}
+
+
+void CTMatView::CreateView() {
+    if (!m_pViewer) {
+        m_pViewer = new TViewer(this);
+        m_pViewer->Create(NULL, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER, CRect(), this);
+        m_pViewer->MoveWindow(m_rect[eRECT_VIEW]);
+    }
 }
 
 void CTMatView::CreateMenu() {
@@ -231,15 +108,15 @@ void CTMatView::CreateMenu() {
     CRect rectLoad              = CRect(dw * 0,     0, dw * 2,  dh);
     CRect rectSave              = CRect(dw * 2,     0, dw * 4,  dh);
     CRect rectFit               = CRect(dw * 4,     0, dw * 5,  dh);
-    m_rect[eRECT_ZOOM]          = CRect(dw * 5,     0, dw * 8,  dh);
+    CRect rectNav               = CRect(dw * 26,    0, dw * 30, dh);
+    m_rect[eRECT_ZOOM_RATE]     = CRect(dw * 5,     0, dw * 8,  dh);
     m_rect[eRECT_COORD]         = CRect(dw * 8,     0, dw * 25, dh);
-    m_rect[eRECT_NAVIGATION]    = CRect(dw * 26,    0, dw * 30, dh);
 
     CreateButton(m_btnLoad, rectLoad, eBTN_LOAD, _T("Load"));
     CreateButton(m_btnSave, rectSave, eBTN_SAVE, _T("Save"));
     CreateButton(m_btnFit,  rectFit,  eBTN_FIT, _T("Fit"));
 
-    if (!m_checkBox.Create(_T("Nav"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, m_rect[eRECT_NAVIGATION], this, IDC_CHECK_BOX)) {
+    if (!m_checkBox.Create(_T("Nav"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, rectNav, this, IDC_CHECK_BOX)) {
         MessageBox(_T("CheckBox create failed"));
     }
     else {
@@ -307,7 +184,7 @@ BOOL CTMatView::LoadImageFile() {
         string strPath(pszConvertedAnsiString);
 
         loadImg = imread(strPath, IMREAD_UNCHANGED);
-        m_rectZoom = CRect();
+        //m_rectZoom = CRect();
     }
 
     if (loadImg.empty()) {
@@ -317,16 +194,15 @@ BOOL CTMatView::LoadImageFile() {
         SetImage(loadImg);
     }
 
-    m_ptOffset      = CPoint(0, 0);
-    m_showImage     = m_orgImage.clone();
-    m_dZoom         = 1.0;
+
     Invalidate(FALSE);
 
     return TRUE;
 }
 
 BOOL CTMatView::SaveImageFile() {
-    if (m_orgImage.empty()) {
+    cv::Mat image = m_pViewer->GetImage().clone();
+    if (image.empty()) {
         MessageBox(_T("Not have image"));
         return FALSE;
     }
@@ -342,49 +218,12 @@ BOOL CTMatView::SaveImageFile() {
         CT2CA pszConvertedAnsiString(cstrPath);
         string strPath(pszConvertedAnsiString);
 
-        imwrite(strPath, m_orgImage);
+        imwrite(strPath, image);
     }
 
     return TRUE;
 }
 
-void CTMatView::FitImage() {
-    m_dZoom = 1.0;
-    m_ptOffset = CPoint(0, 0);
-    Invalidate(FALSE);
-
-    return;
-}
-
-cv::Point2d CTMatView::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image) {
-    cv::Point2d ptImage(-1, -1);
-    
-    if (clientRect.IsRectEmpty() || image.empty())
-        return ptImage;
-
-    double dRateToImage = (double)image.cols / (double)clientRect.Width();
-    clientPt -= clientRect.TopLeft();
-    
-    ptImage = cv::Point2d(clientPt.x * dRateToImage, clientPt.y * dRateToImage);
-    // cv::drawMarker(m_orgImage, ptImage, cv::Scalar(0, 255, 0), 0, 500, 5);
-    return ptImage;
-}
-
-CPoint CTMatView::ClientToView(CPoint pt) {
-    return pt - m_rect[eRECT_PALETTE].TopLeft();
-}
-
-cv::Point CTMatView::ViewToImage(CPoint pt) {
-    cv::Point ptImage(0, 0);
-    if (!m_rectImage.IsRectEmpty()) {
-        ptImage = cv::Point(CPoint(pt - m_rectImage.TopLeft()).x, pt.y);
-        int x = m_orgImage.cols* ptImage.x / m_rectImage.Width();
-        int y = m_orgImage.rows* ptImage.y / m_rectImage.Height();
-        ptImage.x = x > 0 ? x : 0;
-        ptImage.y = y > 0 ? y : 0;
-    }
-    return ptImage / m_dZoom;
-}
 
 /////////////////////////////////////////////   Message
 
@@ -397,6 +236,8 @@ int CTMatView::OnCreate(LPCREATESTRUCT lpCreateStruct)
     SetTimer(T_CHECK_FOCUS, 100, nullptr);
     
     m_brush.CreateSolidBrush(COLOR_MENU);
+
+
 
     return 0;
 }
@@ -411,21 +252,6 @@ void CTMatView::OnShowWindow(BOOL bShow, UINT nStatus)
     }
 }
 
-void CTMatView::OnLButtonDown(UINT nFlags, CPoint point)
-{
-    if (PtInRect(m_rect[eRECT_PALETTE], point)) {
-        m_bLBDown = true;
-        m_ptLBDown = point + m_ptOffset;
-    }
-    CWnd::OnLButtonDown(nFlags, point);
-}
-
-void CTMatView::OnLButtonUp(UINT nFlags, CPoint point)
-{
-    m_bLBDown = false;
-    CWnd::OnLButtonUp(nFlags, point);
-}
-
 void CTMatView::OnPaint()
 {
     CPaintDC dc(this);
@@ -436,11 +262,8 @@ void CTMatView::OnPaint()
     CDC&        pDC = memDC.GetDC();
 
     // background
-    CRect rect = CRect(0, 0, m_rect[eRECT_WND].Width(), m_rect[eRECT_WND].Height());;
+    CRect rect = rectClient;
     pDC.FillSolidRect(rect, COLOR_BACKGROUND);
-
-    // display
-    DisplayImage(pDC.m_hDC, m_showImage);
 
     // menu
     rect = CRect(0, 0, m_rect[eRECT_MENU].Width(), m_rect[eRECT_MENU].Height());
@@ -448,35 +271,21 @@ void CTMatView::OnPaint()
     
     // zoom
     CString str;
-    str.Format(_T("%.1lf"), m_dZoom);
-    pDC.Rectangle(m_rect[eRECT_ZOOM]);
+    str.Format(_T("%.1lf"), m_pViewer->GetZoomRate());
+    pDC.Rectangle(m_rect[eRECT_ZOOM_RATE]);
     pDC.SetTextColor(RGB(0, 0, 0));
     pDC.SetBkColor(RGB(255, 255, 255));
-    pDC.DrawText(str, m_rect[eRECT_ZOOM], DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
+    pDC.DrawText(str, m_rect[eRECT_ZOOM_RATE], DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
     
-    // // test zoom rect
-    // CPen myPen, * pOldPen;
-    // CBrush clsBrush, *pclsBrush;
-    // myPen.CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
-    // pOldPen = pDC.SelectObject(&myPen);
-    // clsBrush.CreateStockObject(NULL_BRUSH);
-    // pclsBrush = pDC.SelectObject(&clsBrush);
-    // //pDC.Rectangle(m_rectImage);
-    // pDC.Rectangle(m_rectZoom);
-    // pDC.SelectObject(pOldPen);
-    // pDC.SelectObject(pclsBrush);
-
     // Coordtrans
-    str.Format(_T("Image [%d, %d] / View [%d, %d]"), m_ptImage.x, m_ptImage.y, m_ptView.x, m_ptView.y);
+    auto ptImage = m_pViewer->GetImagePts();
+    auto ptView = m_pViewer->GetViewPts();
+    str.Format(_T("Image [%d, %d] / View [%d, %d]"), ptImage.x, ptImage.y, ptView.x, ptView.y);
     pDC.Rectangle(m_rect[eRECT_COORD]);
     pDC.SetTextColor(RGB(0, 0, 0));
     pDC.SetBkColor(RGB(255, 255, 255));
     pDC.DrawText(str, m_rect[eRECT_COORD], DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
     
-    
-    //str.Format(_T("Rect : %d %d %d %d"), m_rectZoom.left, m_rectZoom.top, m_rectZoom.Width(), m_rectZoom.Height());
-    //pDC.TextOutW(0, 100, str);
-
     return;
 }
 
@@ -505,7 +314,8 @@ BOOL CTMatView::OnCommand(WPARAM wParam, LPARAM lParam)
             break;
         }
         case eBTN_FIT: {
-            FitImage();
+            m_pViewer->FitImage();
+            //FitImage();
             break;
         }
         case IDC_CHECK_BOX: {
@@ -518,45 +328,15 @@ BOOL CTMatView::OnCommand(WPARAM wParam, LPARAM lParam)
 
 BOOL CTMatView::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
-    if (!m_orgImage.empty()) {
-        CPoint ptClient = pt;
-        ScreenToClient(&ptClient);
+    CPoint ptClient = pt;
+    ScreenToClient(&ptClient);
 
-        if (PtInRect(m_rect[eRECT_PALETTE], ptClient)) {
-            if (zDelta > 0) {
-                if (MAX_ZOOM > m_dZoom)
-                    m_dZoom += 0.1;
-                else
-                    m_dZoom = MAX_ZOOM;
-            }
-            else {
-                if (MIN_ZOOM < m_dZoom)
-                    m_dZoom -= 0.1;
-                else
-                    m_dZoom = MIN_ZOOM;
-            }
-
-            Invalidate(FALSE);
-        }
+    if (PtInRect(m_rect[eRECT_VIEW], ptClient)) {
+        InvalidateRect(m_rect[eRECT_ZOOM_RATE]);
+        InvalidateRect(m_rect[eRECT_COORD]);
     }
   
     return CWnd::OnMouseWheel(nFlags, zDelta, pt);
-}
-
-void CTMatView::OnMouseMove(UINT nFlags, CPoint point)
-{
-    if (!m_orgImage.empty()) {
-        m_ptView = ClientToView(point);
-        m_ptImage = ViewToImage(m_ptView + m_ptOffset);
-        InvalidateRect(m_rect[eRECT_COORD], FALSE);
-
-        if (m_bLBDown) {
-            m_ptOffset = m_ptLBDown - point;
-            InvalidateRect(m_rect[eRECT_PALETTE], FALSE);
-        }
-    }
-
-    CWnd::OnMouseMove(nFlags, point);
 }
 
 
@@ -573,3 +353,4 @@ HBRUSH CTMatView::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 
     return hbr;
 }
+
