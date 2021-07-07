@@ -9,7 +9,7 @@ using namespace std;
 
 #define COLOR_MENU          RGB(45, 45, 48)
 #define COLOR_BACKGROUND    RGB(10, 10, 18)
-#define MAX_ZOOM            10.0
+#define MAX_ZOOM            64.0
 #define MIN_ZOOM            1.0
 
 class TViewer;

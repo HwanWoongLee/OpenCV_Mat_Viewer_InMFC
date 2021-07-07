@@ -23,10 +23,10 @@ public:
 
 private:
 	cv::Point2d     ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);
-	cv::Point       ViewToImage(CPoint pt);
+	//cv::Point       ViewToImage(CPoint pt);
 
 	void            DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo);
-	void			CalcZoomRect();
+	void			CalcZoomRect(CPoint pt);
 
 private:
 	CTMatView*		m_pParent = nullptr;
@@ -35,7 +35,8 @@ private:
 
 	CRect			m_rectDraw;			// 실제 그리고 있는 rect
 	CRect           m_rectZoom;			
-	CRect			m_rectNavi;			// Navigation 영역
+	CRect			m_rectBitmap;
+	
 
 	double			m_dZoom;
 

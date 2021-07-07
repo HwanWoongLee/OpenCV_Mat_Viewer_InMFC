@@ -34,6 +34,8 @@ cv::Mat TViewer::GetImage() {
 void TViewer::FitImage() {
     m_dZoom = 1.0;
     m_ptOffset = CPoint(0, 0);
+    m_rectZoom = m_rectDraw;
+
     Invalidate(FALSE);
 
     return;
@@ -45,7 +47,10 @@ cv::Point2d TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat im
     if (clientRect.IsRectEmpty() || image.empty())
         return ptImage;
 
-    double dRateToImage = (double)image.cols / (double)clientRect.Width();
+    double dRateToImage_x = (double)image.cols / (double)clientRect.Width();
+    double dRateToImage_y = (double)image.rows / (double)clientRect.Height();
+    double dRateToImage = dRateToImage_x > dRateToImage_y ? dRateToImage_x : dRateToImage_y;
+
     clientPt -= clientRect.TopLeft();
     
     ptImage = cv::Point2d(clientPt.x * dRateToImage, clientPt.y * dRateToImage);
@@ -53,26 +58,43 @@ cv::Point2d TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat im
 }
 
 
-cv::Point TViewer::ViewToImage(CPoint pt) {
-    cv::Point ptImage(0, 0);
-    if (!m_rectDraw.IsRectEmpty()) {
-        ptImage = cv::Point(pt.x - m_rectDraw.TopLeft().x, pt.y - m_rectDraw.TopLeft().y);
-        int x = (m_orgImage.cols * ptImage.x) / m_rectDraw.Width();
-        int y = (m_orgImage.rows * ptImage.y) / m_rectDraw.Height();
+//cv::Point TViewer::ViewToImage(CPoint pt) {
+//    cv::Point ptImage(0, 0);
+//    if (!m_rectDraw.IsRectEmpty()) {
+//        ptImage = cv::Point(pt.x - m_rectDraw.TopLeft().x, pt.y - m_rectDraw.TopLeft().y);
+//        int x = (m_orgImage.cols * ptImage.x) / m_rectDraw.Width();
+//        int y = (m_orgImage.rows * ptImage.y) / m_rectDraw.Height();
+//
+//        x /= m_dZoom;
+//        y /= m_dZoom;
+//
+//        if (x < 0) x = 0;
+//        else if (x > m_orgImage.cols) x = m_orgImage.cols;
+//        
+//        if (y < 0) y = 0;
+//        else if (y > m_orgImage.rows) y = m_orgImage.rows;
+//
+//        ptImage.x = x;
+//        ptImage.y = y;
+//    }
+//    return ptImage;
+//}
 
-        x /= m_dZoom;
-        y /= m_dZoom;
 
-        if (x < 0) x = 0;
-        else if (x > m_orgImage.cols) x = m_orgImage.cols;
-        
-        if (y < 0) y = 0;
-        else if (y > m_orgImage.rows) y = m_orgImage.rows;
+void TViewer::CalcZoomRect(CPoint pt) {
+    double dw = m_rectDraw.Width() / m_dZoom;
+    double dh = m_rectDraw.Height() / m_dZoom;
 
-        ptImage.x = x;
-        ptImage.y = y;
-    }
-    return ptImage ;
+    double dx = pt.x - dw / 2;
+    double dy = pt.y - dh / 2;
+
+    if (dx < m_rectDraw.left) dx = m_rectDraw.left; 
+    else if (dx + dw > m_rectDraw.right) dx = m_rectDraw.right - dw;
+
+    if (dy < m_rectDraw.top) dy = m_rectDraw.top; 
+    else if (dy + dh > m_rectDraw.bottom) dy = m_rectDraw.bottom - dh;
+    
+    m_rectZoom = CRect(dx, dy, dx + dw, dy + dh);
 }
 
 BEGIN_MESSAGE_MAP(TViewer, CFrameWnd)
@@ -109,18 +131,16 @@ void TViewer::OnMouseMove(UINT nFlags, CPoint point)
 {
     if (!m_orgImage.empty()) {
         m_ptView = point;
-        m_ptZoom = CPoint(m_ptView.x / m_dZoom, m_ptView.y / m_dZoom);
+        
+        CPoint pt = m_ptView - m_rectDraw.TopLeft();
+        m_ptZoom = CPoint(pt.x / m_dZoom, pt.y / m_dZoom);
+        m_ptZoom += m_ptOffset;
+        m_ptZoom += m_rectZoom.TopLeft();
 
-        m_ptImage = ViewToImage(m_ptView + m_ptOffset);
+        m_ptImage = ClientToImage(m_ptZoom, m_rectDraw, m_orgImage);
 
         Invalidate(FALSE);
         m_pParent->UpdateUI();
-
-        //if (m_bLBDown) {
-        //    m_ptOffset = m_ptLBDown - point;
-        //    InvalidateRect(m_rect[eRECT_PALETTE], FALSE);
-        //}
-    
     }
 	CFrameWnd::OnMouseMove(nFlags, point);
 }
@@ -135,36 +155,25 @@ BOOL TViewer::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
         if (PtInRect(m_clientRect, ptClient)) {
             if (zDelta > 0) {           // zoom in
                 if (MAX_ZOOM > m_dZoom)
-                    m_dZoom += 0.1;
+                    m_dZoom += m_dZoom * 0.26;
                 else
                     m_dZoom = MAX_ZOOM;
             }   
             else {                      // zoom out
                 if (MIN_ZOOM < m_dZoom)
-                    m_dZoom -= 0.1;
-                else
+                    m_dZoom -= m_dZoom * 0.26;
+                else {
                     m_dZoom = MIN_ZOOM;
+                }
             }
     
-            CalcZoomRect();
+            CalcZoomRect(m_ptZoom);
             Invalidate(FALSE);
         }
     }
 	return CFrameWnd::OnMouseWheel(nFlags, zDelta, pt);
 }
 
-void TViewer::CalcZoomRect() {
-    double dw = m_rectDraw.Width() / m_dZoom;
-    double dh = m_rectDraw.Height() / m_dZoom;
-
-    double dx = m_rectDraw.CenterPoint().x - dw / 2;
-    double dy = m_rectDraw.CenterPoint().y - dh / 2;
-
-    m_rectZoom = CRect(m_rectZoom.left, m_rectZoom.top, m_rectZoom.left + dw, m_rectZoom.top + dh);
-    //m_rectZoom = CRect(dx, dy, dx + dw, dy + dh);
-
-    return;
-}
 
 void TViewer::OnPaint()
 {
@@ -247,7 +256,7 @@ void TViewer::OnPaint()
         if (m_dZoom > 1.0) {
             double x = m_rectZoom.left;
             double y = m_rectZoom.top;
-
+        
             dx = dx - ((x - dx) * m_dZoom);
             dy = dy - ((y - dy) * m_dZoom);
             dw = m_dZoom * dw;
@@ -267,6 +276,8 @@ void TViewer::OnPaint()
             DIB_RGB_COLORS,
             SRCCOPY);
 
+        m_rectBitmap = CRect(dx, dy, dw, dh);
+
         // Navigation
         if (m_pParent->GetCheck()) {
             DisplayNavi(pDC.m_hDC, bitmapInfo);
@@ -274,10 +285,14 @@ void TViewer::OnPaint()
 	}
 
 
-    // test
+    //// test
     CString str;
-    str.Format(_T("test [%d, %d]\n"), m_ptZoom.x, m_ptZoom.y);
-    TRACE(str);
+    str.Format(_T("test [%d, %d]"), m_ptZoom.x, m_ptZoom.y);
+    //TRACE(str);
+
+    pDC.FillSolidRect(CRect(0, 0, 200, 25), RGB(255, 255, 255));
+    pDC.DrawText(str, CRect(0, 0, 200, 25), DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
+
 }
 
 
@@ -294,12 +309,13 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
         cvtColor(showNavImage, showNavImage, cv::COLOR_GRAY2RGB);
     }
     else if (showNavImage.channels() == 4) {
+
     }
 
     cv::Point lt = ClientToImage(m_rectZoom.TopLeft(),      m_rectDraw, m_orgImage);
     cv::Point br = ClientToImage(m_rectZoom.BottomRight(),  m_rectDraw, m_orgImage);
 
-    cv::drawMarker(showNavImage, m_ptImage, cv::Scalar(0,255,0), 0, showNavImage.cols / 10, showNavImage.cols / 100);
+    cv::drawMarker(showNavImage, m_ptImage, cv::Scalar(0, 255, 0), 0, showNavImage.cols / 10, showNavImage.cols / 100);
 
     cv::rectangle(showNavImage, cv::Rect(lt.x, lt.y, br.x - lt.x, br.y - lt.y), cv::Scalar(0,255,0), showNavImage.cols * 0.01);
     cv::resize(showNavImage, showNavImage, cv::Size(GDI_WIDTHBYTES(showNavImage.cols * 8), showNavImage.rows));
