@@ -5,16 +5,12 @@
 IMPLEMENT_DYNAMIC(CTMatView, CWnd)
 
 BEGIN_MESSAGE_MAP(CTMatView, CWnd)
-    ON_WM_LBUTTONDOWN()
-    ON_WM_LBUTTONUP()
     ON_WM_SHOWWINDOW()
     ON_WM_ACTIVATE()
-    ON_WM_MOUSEMOVE()
     ON_WM_PAINT()
     ON_WM_CREATE()
     ON_WM_TIMER()
     ON_WM_MOUSEWHEEL()
-    ON_WM_MOUSEMOVE()
     ON_WM_CTLCOLOR()
     ON_WM_MOVE()
     ON_WM_MOUSEMOVE()
@@ -94,7 +90,7 @@ void CTMatView::SetRectArea(CRect rect) {
 void CTMatView::CreateView() {
     if (!m_pViewer) {
         m_pViewer = new TViewer(this);
-        m_pViewer->Create(NULL, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER, CRect(), this);
+        m_pViewer->Create(NULL, NULL, WS_VISIBLE | WS_CHILD, CRect(), this);
         m_pViewer->MoveWindow(m_rect[eRECT_VIEW]);
     }
 }
@@ -108,7 +104,7 @@ void CTMatView::CreateMenu() {
     CRect rectLoad              = CRect(dw * 0,     0, dw * 2,  dh);
     CRect rectSave              = CRect(dw * 2,     0, dw * 4,  dh);
     CRect rectFit               = CRect(dw * 4,     0, dw * 5,  dh);
-    CRect rectNav               = CRect(dw * 26,    0, dw * 30, dh);
+    CRect rectNav               = CRect(dw * 28,    0, dw * 30, dh);
     m_rect[eRECT_ZOOM_RATE]     = CRect(dw * 5,     0, dw * 8,  dh);
     m_rect[eRECT_COORD]         = CRect(dw * 8,     0, dw * 25, dh);
 
@@ -184,7 +180,6 @@ BOOL CTMatView::LoadImageFile() {
         string strPath(pszConvertedAnsiString);
 
         loadImg = imread(strPath, IMREAD_UNCHANGED);
-        //m_rectZoom = CRect();
     }
 
     if (loadImg.empty()) {

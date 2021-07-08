@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#define RATE_ZOOMING 0.266
+
 class CTMatView;
 class TViewer : public CFrameWnd
 {
@@ -23,7 +25,6 @@ public:
 
 private:
 	cv::Point2d     ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);
-	//cv::Point       ViewToImage(CPoint pt);
 
 	void            DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo);
 	void			CalcZoomRect(CPoint pt);
@@ -40,6 +41,9 @@ private:
 
 	double			m_dZoom;
 
+	bool			m_bLButton;
+
+	CPoint			m_ptLBStart;
 
 	CPoint          m_ptOffset;
 	CPoint          m_ptView;

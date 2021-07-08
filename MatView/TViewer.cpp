@@ -58,43 +58,24 @@ cv::Point2d TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat im
 }
 
 
-//cv::Point TViewer::ViewToImage(CPoint pt) {
-//    cv::Point ptImage(0, 0);
-//    if (!m_rectDraw.IsRectEmpty()) {
-//        ptImage = cv::Point(pt.x - m_rectDraw.TopLeft().x, pt.y - m_rectDraw.TopLeft().y);
-//        int x = (m_orgImage.cols * ptImage.x) / m_rectDraw.Width();
-//        int y = (m_orgImage.rows * ptImage.y) / m_rectDraw.Height();
-//
-//        x /= m_dZoom;
-//        y /= m_dZoom;
-//
-//        if (x < 0) x = 0;
-//        else if (x > m_orgImage.cols) x = m_orgImage.cols;
-//        
-//        if (y < 0) y = 0;
-//        else if (y > m_orgImage.rows) y = m_orgImage.rows;
-//
-//        ptImage.x = x;
-//        ptImage.y = y;
-//    }
-//    return ptImage;
-//}
-
-
 void TViewer::CalcZoomRect(CPoint pt) {
     double dw = m_rectDraw.Width() / m_dZoom;
     double dh = m_rectDraw.Height() / m_dZoom;
+    double dZoomRate = m_rectZoom.Width() / dw;
 
-    double dx = pt.x - dw / 2;
-    double dy = pt.y - dh / 2;
+    double dx = pt.x - ((pt.x - m_rectZoom.left) / dZoomRate);
+    double dy = pt.y - ((pt.y - m_rectZoom.top) / dZoomRate);
 
     if (dx < m_rectDraw.left) dx = m_rectDraw.left; 
     else if (dx + dw > m_rectDraw.right) dx = m_rectDraw.right - dw;
-
+    
     if (dy < m_rectDraw.top) dy = m_rectDraw.top; 
     else if (dy + dh > m_rectDraw.bottom) dy = m_rectDraw.bottom - dh;
     
     m_rectZoom = CRect(dx, dy, dx + dw, dy + dh);
+
+    m_ptOffset.x = 0;
+    m_ptOffset.y = 0;
 }
 
 BEGIN_MESSAGE_MAP(TViewer, CFrameWnd)
@@ -113,7 +94,10 @@ END_MESSAGE_MAP()
 
 void TViewer::OnLButtonDown(UINT nFlags, CPoint point)
 {
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+    if (!m_bLButton) {
+        m_bLButton = true;
+        m_ptLBStart = point + m_ptOffset;
+    }
 
 	CFrameWnd::OnLButtonDown(nFlags, point);
 }
@@ -121,8 +105,13 @@ void TViewer::OnLButtonDown(UINT nFlags, CPoint point)
 
 void TViewer::OnLButtonUp(UINT nFlags, CPoint point)
 {
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-
+    if (m_bLButton) {
+        m_bLButton = false;
+        // 여기 문제있음
+        m_rectZoom.TopLeft() += CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom);
+        m_rectZoom.BottomRight() += CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom);
+        CalcZoomRect(m_ptZoom);
+    }
 	CFrameWnd::OnLButtonUp(nFlags, point);
 }
 
@@ -130,14 +119,18 @@ void TViewer::OnLButtonUp(UINT nFlags, CPoint point)
 void TViewer::OnMouseMove(UINT nFlags, CPoint point)
 {
     if (!m_orgImage.empty()) {
+        if (m_bLButton) {
+            m_ptOffset = m_ptLBStart - point;
+        }
+
         m_ptView = point;
-        
         CPoint pt = m_ptView - m_rectDraw.TopLeft();
         m_ptZoom = CPoint(pt.x / m_dZoom, pt.y / m_dZoom);
-        m_ptZoom += m_ptOffset;
+        m_ptZoom += CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom);
         m_ptZoom += m_rectZoom.TopLeft();
-
+        
         m_ptImage = ClientToImage(m_ptZoom, m_rectDraw, m_orgImage);
+
 
         Invalidate(FALSE);
         m_pParent->UpdateUI();
@@ -155,18 +148,19 @@ BOOL TViewer::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
         if (PtInRect(m_clientRect, ptClient)) {
             if (zDelta > 0) {           // zoom in
                 if (MAX_ZOOM > m_dZoom)
-                    m_dZoom += m_dZoom * 0.26;
+                    m_dZoom += m_dZoom * RATE_ZOOMING;
                 else
                     m_dZoom = MAX_ZOOM;
             }   
             else {                      // zoom out
                 if (MIN_ZOOM < m_dZoom)
-                    m_dZoom -= m_dZoom * 0.26;
-                else {
+                    m_dZoom -= m_dZoom * RATE_ZOOMING;
+
+                if (MIN_ZOOM > m_dZoom) {
                     m_dZoom = MIN_ZOOM;
+                    FitImage();
                 }
             }
-    
             CalcZoomRect(m_ptZoom);
             Invalidate(FALSE);
         }
@@ -285,13 +279,14 @@ void TViewer::OnPaint()
 	}
 
 
-    //// test
+    // test
     CString str;
     str.Format(_T("test [%d, %d]"), m_ptZoom.x, m_ptZoom.y);
-    //TRACE(str);
-
     pDC.FillSolidRect(CRect(0, 0, 200, 25), RGB(255, 255, 255));
     pDC.DrawText(str, CRect(0, 0, 200, 25), DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
+
+
+    
 
 }
 
@@ -312,8 +307,11 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
 
     }
 
-    cv::Point lt = ClientToImage(m_rectZoom.TopLeft(),      m_rectDraw, m_orgImage);
-    cv::Point br = ClientToImage(m_rectZoom.BottomRight(),  m_rectDraw, m_orgImage);
+    cv::Point lt = ClientToImage(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectDraw, m_orgImage);
+    cv::Point br = ClientToImage(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectDraw, m_orgImage);
+
+    //cv::Point lt = ClientToImage(m_rectZoom.TopLeft()    , m_rectDraw, m_orgImage);
+    //cv::Point br = ClientToImage(m_rectZoom.BottomRight(), m_rectDraw, m_orgImage);
 
     cv::drawMarker(showNavImage, m_ptImage, cv::Scalar(0, 255, 0), 0, showNavImage.cols / 10, showNavImage.cols / 100);
 
