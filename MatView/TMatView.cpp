@@ -119,8 +119,6 @@ void CTMatView::CreateMenu() {
         SetWindowTheme(m_checkBox.m_hWnd, _T(""), _T(""));
         m_checkBox.SetCheck(true);
     }
-
-    return;
 }
 
 void CTMatView::CreateButton(CMFCButton& button, CRect rect, eBTN_ID btnID, LPCTSTR str) {
@@ -188,7 +186,6 @@ BOOL CTMatView::LoadImageFile() {
     else {
         SetImage(loadImg);
     }
-
 
     Invalidate(FALSE);
 
@@ -275,7 +272,7 @@ void CTMatView::OnPaint()
     // Coordtrans
     auto ptImage = m_pViewer->GetImagePts();
     auto ptView = m_pViewer->GetViewPts();
-    str.Format(_T("Image [%d, %d] / View [%d, %d]"), ptImage.x, ptImage.y, ptView.x, ptView.y);
+    str.Format(_T("Image [%.1lf, %.1lf] / View [%d, %d]"), ptImage.x, ptImage.y, ptView.x, ptView.y);
     pDC.Rectangle(m_rect[eRECT_COORD]);
     pDC.SetTextColor(RGB(0, 0, 0));
     pDC.SetBkColor(RGB(255, 255, 255));

@@ -9,7 +9,7 @@ using namespace std;
 
 #define COLOR_MENU          RGB(45, 45, 48)
 #define COLOR_BACKGROUND    RGB(10, 10, 18)
-#define MAX_ZOOM            64.0
+#define MAX_ZOOM            50.0
 #define MIN_ZOOM            1.0
 
 class TViewer;
@@ -41,7 +41,8 @@ public:
     void            MoveWindow(CRect rect);
 
     void            UpdateUI();
-    bool            GetCheck() { return m_checkBox.GetCheck(); }
+    bool            GetNaviCheck() { return m_checkBox.GetCheck(); }
+
 
 private:
     void            SetImage(cv::Mat image);
@@ -56,14 +57,14 @@ private:
     void            CreateMenu();
     void            CreateButton(CMFCButton& button, CRect rect, eBTN_ID btnID, LPCTSTR str = _T(""));
 
+
 private:
-    CWnd*           m_pwndParent = nullptr;
-    TViewer*        m_pViewer = nullptr;
+    CWnd*           m_pwndParent    = nullptr;
+    TViewer*        m_pViewer       = nullptr;
+
+    bool            m_bLBDown       = false;      // 마우스 왼클릭
 
     CRect           m_rect[eRECT_NUM];
-
-    bool            m_bLBDown = false;      // 마우스 왼클릭
-
     CBrush          m_brush;
 
     // Menu
@@ -71,8 +72,6 @@ private:
     CMFCButton	    m_btnSave;
     CMFCButton	    m_btnFit;
     CButton         m_checkBox;
-
-
 
 
 public:
