@@ -38,16 +38,30 @@ CTMatView::~CTMatView() {
 }
 
 void CTMatView::InitMatView() {
-
     for (int i = 0; i < eRECT_NUM; ++i) {
         m_rect[i]       = CRect();
     }
 
+    m_bShowTool = true;
 }
 
 void CTMatView::UpdateUI() {
     InvalidateRect(m_rect[eRECT_COORD]);
     InvalidateRect(m_rect[eRECT_ZOOM_RATE]);
+}
+
+void CTMatView::ShowTool(bool bShow) {
+    if (m_rect[eRECT_WND].IsRectEmpty())
+        return;
+
+    m_bShowTool = bShow;
+
+    SetRectArea(m_rect[eRECT_WND]);
+
+    CreateView();
+    CreateMenu();
+
+    Invalidate(FALSE);
 }
 
 void CTMatView::SetImage(cv::Mat image) {
@@ -76,18 +90,32 @@ void CTMatView::SetRectArea(CRect rect) {
     double dW = rect.Width();
     double dH = rect.Height();
 
-    m_rect[eRECT_MENU] = CRect(0, 0, dW, 25);
-    m_rect[eRECT_VIEW] = CRect(0, 25, dW, dH);
+    m_rect[eRECT_WND]   = rect;
+    if (m_bShowTool) {
+        m_rect[eRECT_MENU] = CRect(0, 0, dW, 25);
+        m_rect[eRECT_VIEW] = CRect(0, 25, dW, dH);
+    }
+    else {
+        m_rect[eRECT_MENU] = CRect(0, 0, 0, 0);
+        m_rect[eRECT_VIEW] = CRect(0, 0, dW, dH);
+    }
 
     //Set window size    
     SetWindowPos(NULL,
         rect.left, rect.top,
-        rect.Width(), rect.Height(),
+        dW, dH,
         SWP_NOREPOSITION);
+
 }
 
 
 void CTMatView::CreateView() {
+    if (m_pViewer) {
+        delete m_pViewer;
+        m_pViewer = nullptr;
+    }
+
+
     if (!m_pViewer) {
         m_pViewer = new TViewer(this);
         m_pViewer->Create(NULL, NULL, WS_VISIBLE | WS_CHILD, CRect(), this);
@@ -106,7 +134,12 @@ void CTMatView::CreateMenu() {
     CRect rectFit               = CRect(dw * 4,     0, dw * 5,  dh);
     CRect rectNav               = CRect(dw * 28,    0, dw * 30, dh);
     m_rect[eRECT_ZOOM_RATE]     = CRect(dw * 5,     0, dw * 8,  dh);
-    m_rect[eRECT_COORD]         = CRect(dw * 8,     0, dw * 25, dh);
+    m_rect[eRECT_COORD]         = CRect(dw * 8,     0, dw * 27, dh);
+
+    m_btnLoad.DestroyWindow();
+    m_btnSave.DestroyWindow();
+    m_btnFit.DestroyWindow();
+    m_checkBox.DestroyWindow();
 
     CreateButton(m_btnLoad, rectLoad, eBTN_LOAD, _T("Load"));
     CreateButton(m_btnSave, rectSave, eBTN_SAVE, _T("Save"));
@@ -117,7 +150,7 @@ void CTMatView::CreateMenu() {
     }
     else {
         SetWindowTheme(m_checkBox.m_hWnd, _T(""), _T(""));
-        m_checkBox.SetCheck(true);
+        m_checkBox.SetCheck(m_bShowTool);
     }
 }
 
@@ -226,10 +259,7 @@ int CTMatView::OnCreate(LPCREATESTRUCT lpCreateStruct)
         return -1;
 
     SetTimer(T_CHECK_FOCUS, 100, nullptr);
-    
     m_brush.CreateSolidBrush(COLOR_MENU);
-
-
 
     return 0;
 }
@@ -272,11 +302,13 @@ void CTMatView::OnPaint()
     // Coordtrans
     auto ptImage = m_pViewer->GetImagePts();
     auto ptView = m_pViewer->GetViewPts();
-    str.Format(_T("Image [%.1lf, %.1lf] / View [%d, %d]"), ptImage.x, ptImage.y, ptView.x, ptView.y);
+    auto imgColor = m_pViewer->GetImageColor();
+
+    str.Format(_T("Image [%.1lf, %.1lf] / View [%d, %d] / Color [%.0lf %.0lf %.0lf]"), ptImage.x, ptImage.y, ptView.x, ptView.y, imgColor[0], imgColor[1], imgColor[2]);
     pDC.Rectangle(m_rect[eRECT_COORD]);
     pDC.SetTextColor(RGB(0, 0, 0));
     pDC.SetBkColor(RGB(255, 255, 255));
-    pDC.DrawText(str, m_rect[eRECT_COORD], DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
+    pDC.DrawText(str, m_rect[eRECT_COORD] + CRect(-5, 0, 0, 0), DT_LEFT | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
 
     return;
 }

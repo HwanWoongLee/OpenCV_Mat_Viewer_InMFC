@@ -56,7 +56,12 @@ BOOL CMatViewDlg::OnInitDialog()
 	pWnd->GetWindowRect(&rect);
 	ScreenToClient(rect);
 	m_view.MoveWindow(rect);
+	m_view.ShowTool(true);
 	pWnd->DestroyWindow();
+
+	cv::Mat image = cv::imread("D:/Project/MatView/pepe.png");
+	m_view.SetImage(image);
+
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
 

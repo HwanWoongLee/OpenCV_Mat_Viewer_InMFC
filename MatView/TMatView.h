@@ -24,6 +24,7 @@ class CTMatView : public CWnd {
     };
 
     enum eRECT {
+        eRECT_WND           ,
         eRECT_MENU          ,
         eRECT_VIEW          ,
         eRECT_ZOOM_RATE     ,
@@ -42,10 +43,10 @@ public:
 
     void            UpdateUI();
     bool            GetNaviCheck() { return m_checkBox.GetCheck(); }
-
+    void            ShowTool(bool bShow);
+    void            SetImage(cv::Mat image);
 
 private:
-    void            SetImage(cv::Mat image);
     void            SetRectArea(CRect rect);
     void            SetParentWnd();
 
@@ -63,9 +64,12 @@ private:
     TViewer*        m_pViewer       = nullptr;
 
     bool            m_bLBDown       = false;      // 마우스 왼클릭
+    bool            m_bShowTool;
 
     CRect           m_rect[eRECT_NUM];
     CBrush          m_brush;
+
+    
 
     // Menu
     CMFCButton	    m_btnLoad;

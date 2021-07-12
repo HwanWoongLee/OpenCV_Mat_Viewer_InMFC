@@ -19,6 +19,7 @@ public:
 	cv::Point2d		GetImagePts() { return m_ptImage; }
 	CPoint			GetViewPts() { return m_ptView; }
 	double			GetZoomRate() { return m_dZoom; }
+	cv::Scalar		GetImageColor() { return m_imgColor; }
 
 private:
 	cv::Point2d     ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);
@@ -40,11 +41,12 @@ private:
 	bool			m_bLButton;
 
 	CPoint			m_ptZoom;			// zoom 하는 중심(private)
-	CPoint			m_ptLBStart;
-	CPoint			m_ptOffset;
-	CPoint			m_ptView;
-	cv::Point2d     m_ptImage;
+	CPoint			m_ptLBStart;		// mouse clieck pos
+	CPoint			m_ptOffset;			// mouse offset 
+	CPoint			m_ptView;			// view point
+	cv::Point2d     m_ptImage;			// image point
 
+	cv::Scalar      m_imgColor;			// image color
 
 protected:
 	DECLARE_MESSAGE_MAP()

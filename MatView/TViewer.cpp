@@ -54,7 +54,17 @@ cv::Point2d TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat im
 
     clientPt -= clientRect.TopLeft();
 
-    ptImage = cv::Point2d(clientPt.x * dRateToImage, clientPt.y * dRateToImage);
+    double dx = clientPt.x * dRateToImage;
+    double dy = clientPt.y * dRateToImage;
+
+    if (dx > m_orgImage.cols - 1) dx = m_orgImage.cols - 1;
+    else if (dx < 0) dx = 0;
+
+    if (dy > m_orgImage.rows - 1) dy = m_orgImage.rows - 1;
+    else if (dy < 0) dy = 0;
+
+    ptImage = cv::Point2d(dx, dy);
+
     return ptImage;
 }
 
@@ -122,7 +132,6 @@ void TViewer::OnMouseMove(UINT nFlags, CPoint point)
     if (!m_orgImage.empty()) {
         if (m_bLButton) {
             m_ptOffset = m_ptLBStart - point;
-            // CalcZoomRect(m_ptZoom);
         }
     
         m_ptView = point;
@@ -132,7 +141,17 @@ void TViewer::OnMouseMove(UINT nFlags, CPoint point)
         m_ptZoom += m_rectZoom.TopLeft();
 
         m_ptImage = ClientToImage(m_ptZoom, m_rectDraw, m_orgImage);
-        
+
+        if (m_ptImage != cv::Point2d(-1, -1)) {
+            if (m_orgImage.channels() == 1) {
+                m_imgColor = cv::Scalar(m_orgImage.at<uchar>(m_ptImage));
+            }
+            else if (m_orgImage.channels() == 3) {
+                m_imgColor = cv::Scalar(m_orgImage.at<cv::Vec3b>(m_ptImage)[0],
+                    m_orgImage.at<cv::Vec3b>(m_ptImage)[1],
+                    m_orgImage.at<cv::Vec3b>(m_ptImage)[2]);
+            }
+        }
 
         Invalidate(FALSE);
         m_pParent->UpdateUI();
@@ -150,7 +169,8 @@ BOOL TViewer::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
         if (PtInRect(m_clientRect, ptClient)) {
             if (zDelta > 0) {           // zoom in
                 if (MAX_ZOOM > m_dZoom) {
-                    m_dZoom += 1;//m_dZoom * RATE_ZOOMING;
+                    //m_dZoom += 1;
+                    m_dZoom += m_dZoom * RATE_ZOOMING;
                     CalcZoomRect(m_ptZoom);
                 }
                 else
@@ -158,7 +178,8 @@ BOOL TViewer::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
             }   
             else {                      // zoom out
                 if (MIN_ZOOM < m_dZoom) {
-                    m_dZoom -= 1;//^ m_dZoom* RATE_ZOOMING;
+                    //m_dZoom -= 1;
+                    m_dZoom -= m_dZoom * RATE_ZOOMING;
                     CalcZoomRect(m_ptZoom);
                 }
                 if (MIN_ZOOM > m_dZoom) {
@@ -305,7 +326,7 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
 
     cv::Point lt = ClientToImage(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectDraw, m_orgImage);
     cv::Point br = ClientToImage(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectDraw, m_orgImage);
-
+    
     cv::drawMarker(showNavImage, m_ptImage, cv::Scalar(0, 255, 0), 0, showNavImage.cols / 10, showNavImage.cols / 100);
 
     cv::rectangle(showNavImage, cv::Rect(lt.x, lt.y, br.x - lt.x, br.y - lt.y), cv::Scalar(0,255,0), showNavImage.cols * 0.01);
