@@ -68,6 +68,9 @@ void CTMatView::SetImage(cv::Mat image) {
             m_pViewer->FitImage();
        }
     }
+    else {
+        MessageBox(_T("Failed to open image"));
+    }
 }
 
 void CTMatView::MoveWindow(CRect rect) {
