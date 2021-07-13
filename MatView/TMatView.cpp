@@ -5,15 +5,11 @@
 IMPLEMENT_DYNAMIC(CTMatView, CWnd)
 
 BEGIN_MESSAGE_MAP(CTMatView, CWnd)
-    ON_WM_SHOWWINDOW()
-    ON_WM_ACTIVATE()
-    ON_WM_PAINT()
     ON_WM_CREATE()
-    ON_WM_TIMER()
+    ON_WM_SHOWWINDOW()
+    ON_WM_PAINT()
     ON_WM_MOUSEWHEEL()
     ON_WM_CTLCOLOR()
-    ON_WM_MOVE()
-    ON_WM_MOUSEMOVE()
 END_MESSAGE_MAP()
 
 
@@ -39,13 +35,14 @@ CTMatView::~CTMatView() {
 
 void CTMatView::InitMatView() {
     for (int i = 0; i < eRECT_NUM; ++i) {
-        m_rect[i]       = CRect();
+        m_rect[i] = CRect();
     }
 
+    m_bLBDown   = false;
     m_bShowTool = true;
 }
 
-void CTMatView::UpdateUI() {
+void CTMatView::UpdateTool() {
     InvalidateRect(m_rect[eRECT_COORD]);
     InvalidateRect(m_rect[eRECT_ZOOM_RATE]);
 }
@@ -105,7 +102,6 @@ void CTMatView::SetRectArea(CRect rect) {
         rect.left, rect.top,
         dW, dH,
         SWP_NOREPOSITION);
-
 }
 
 
@@ -258,7 +254,6 @@ int CTMatView::OnCreate(LPCREATESTRUCT lpCreateStruct)
     if (CWnd::OnCreate(lpCreateStruct) == -1)
         return -1;
 
-    SetTimer(T_CHECK_FOCUS, 100, nullptr);
     m_brush.CreateSolidBrush(COLOR_MENU);
 
     return 0;
@@ -269,7 +264,6 @@ void CTMatView::OnShowWindow(BOOL bShow, UINT nStatus)
     CWnd::OnShowWindow(bShow, nStatus);
 
     if (bShow) {
-        SetTimer(T_CHECK_FOCUS, 500, nullptr);
         Invalidate(FALSE);
     }
 }
@@ -311,19 +305,6 @@ void CTMatView::OnPaint()
     pDC.DrawText(str, m_rect[eRECT_COORD] + CRect(-5, 0, 0, 0), DT_LEFT | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
 
     return;
-}
-
-void CTMatView::OnTimer(UINT_PTR nIDEvent)
-{
-    switch (nIDEvent) {
-        case T_CHECK_FOCUS: {
-            Invalidate(FALSE);
-            KillTimer(T_CHECK_FOCUS);
-            break;
-        }
-    }
-
-    CWnd::OnTimer(nIDEvent);
 }
 
 BOOL CTMatView::OnCommand(WPARAM wParam, LPARAM lParam)

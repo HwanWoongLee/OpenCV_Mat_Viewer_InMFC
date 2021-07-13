@@ -55,6 +55,7 @@ BOOL CMatViewDlg::OnInitDialog()
 	CRect rect;
 	pWnd->GetWindowRect(&rect);
 	ScreenToClient(rect);
+
 	m_view.MoveWindow(rect);
 	m_view.ShowTool(true);
 	pWnd->DestroyWindow();

@@ -1,10 +1,7 @@
-﻿
-#include "pch.h"
+﻿#include "pch.h"
 #include "MatView.h"
 #include "TViewer.h"
 #include "TMatView.h"
-
-// TViewer
 
 IMPLEMENT_DYNCREATE(TViewer, CFrameWnd)
 
@@ -14,7 +11,6 @@ TViewer::TViewer(CWnd* pParent)
     m_dZoom     = 1.0;
     m_pParent   = (CTMatView*)pParent;
 }
-
 TViewer::TViewer()
 {
 }
@@ -25,7 +21,7 @@ TViewer::~TViewer()
 void TViewer::DrawView(const cv::Mat& image) {
     m_orgImage = image.clone();
     m_rectZoom = CRect();
-    m_rectDraw = CRect();
+    m_rectView = CRect();
 
 	Invalidate(FALSE);
 }
@@ -37,7 +33,7 @@ cv::Mat TViewer::GetImage() {
 void TViewer::FitImage() {
     m_dZoom     = 1.0;
     m_ptOffset  = CPoint(0, 0);
-    m_rectZoom  = m_rectDraw;
+    m_rectZoom  = m_rectView;
 
     Invalidate(FALSE);
 }
@@ -70,8 +66,8 @@ cv::Point2d TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat im
 
 
 void TViewer::CalcZoomRect(CPoint pt) {
-    double dw = m_rectDraw.Width() / m_dZoom;
-    double dh = m_rectDraw.Height() / m_dZoom;
+    double dw = m_rectView.Width() / m_dZoom;
+    double dh = m_rectView.Height() / m_dZoom;
 
     double dZoomRate = m_rectZoom.Width() / dw;
 
@@ -81,16 +77,38 @@ void TViewer::CalcZoomRect(CPoint pt) {
     dx += m_ptOffset.x / m_dZoom;
     dy += m_ptOffset.y / m_dZoom;
 
-    if (dx < m_rectDraw.left) dx = m_rectDraw.left; 
-    else if (dx + dw > m_rectDraw.right) dx = m_rectDraw.right - dw;
+    if (dx < m_rectView.left) dx = m_rectView.left; 
+    else if (dx + dw > m_rectView.right) dx = m_rectView.right - dw;
     
-    if (dy < m_rectDraw.top) dy = m_rectDraw.top; 
-    else if (dy + dh > m_rectDraw.bottom) dy = m_rectDraw.bottom - dh;
+    if (dy < m_rectView.top) dy = m_rectView.top; 
+    else if (dy + dh > m_rectView.bottom) dy = m_rectView.bottom - dh;
     
     m_rectZoom = CRect(round(dx), round(dy), round(dx + dw), round(dy + dh));
 
     m_ptOffset.x = 0;
     m_ptOffset.y = 0;
+}
+
+
+void TViewer::Zooming(short zDelta) {
+    if (zDelta > 0) {           // zoom in
+        if (MAX_ZOOM > m_dZoom) {
+            m_dZoom += m_dZoom * RATE_ZOOMING;
+            CalcZoomRect(m_ptZoom);
+        }
+        else
+            m_dZoom = MAX_ZOOM;
+    }
+    else {                      // zoom out
+        if (MIN_ZOOM < m_dZoom) {
+            m_dZoom -= m_dZoom * RATE_ZOOMING;
+            CalcZoomRect(m_ptZoom);
+        }
+        if (MIN_ZOOM > m_dZoom) {
+            m_dZoom = MIN_ZOOM;
+            FitImage();
+        }
+    }
 }
 
 
@@ -130,17 +148,16 @@ void TViewer::OnLButtonUp(UINT nFlags, CPoint point)
 void TViewer::OnMouseMove(UINT nFlags, CPoint point)
 {
     if (!m_orgImage.empty()) {
-        if (m_bLButton) {
+        if (m_bLButton)
             m_ptOffset = m_ptLBStart - point;
-        }
-    
+
         m_ptView = point;
-        CPoint pt = m_ptView - m_rectDraw.TopLeft();
+        CPoint pt = m_ptView - m_rectView.TopLeft();
         m_ptZoom = CPoint(pt.x / m_dZoom, pt.y / m_dZoom);
         m_ptZoom += CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom);
         m_ptZoom += m_rectZoom.TopLeft();
 
-        m_ptImage = ClientToImage(m_ptZoom, m_rectDraw, m_orgImage);
+        m_ptImage = ClientToImage(m_ptZoom, m_rectView, m_orgImage);
 
         if (m_ptImage != cv::Point2d(-1, -1)) {
             if (m_orgImage.channels() == 1) {
@@ -154,7 +171,7 @@ void TViewer::OnMouseMove(UINT nFlags, CPoint point)
         }
 
         Invalidate(FALSE);
-        m_pParent->UpdateUI();
+        m_pParent->UpdateTool();
     }
 	CFrameWnd::OnMouseMove(nFlags, point);
 }
@@ -167,27 +184,7 @@ BOOL TViewer::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
         ScreenToClient(&ptClient);
     
         if (PtInRect(m_clientRect, ptClient)) {
-            if (zDelta > 0) {           // zoom in
-                if (MAX_ZOOM > m_dZoom) {
-                    //m_dZoom += 1;
-                    m_dZoom += m_dZoom * RATE_ZOOMING;
-                    CalcZoomRect(m_ptZoom);
-                }
-                else
-                    m_dZoom = MAX_ZOOM;
-            }   
-            else {                      // zoom out
-                if (MIN_ZOOM < m_dZoom) {
-                    //m_dZoom -= 1;
-                    m_dZoom -= m_dZoom * RATE_ZOOMING;
-                    CalcZoomRect(m_ptZoom);
-                }
-                if (MIN_ZOOM > m_dZoom) {
-                    m_dZoom = MIN_ZOOM;
-                    FitImage();
-                }
-            }
-            
+            Zooming(zDelta);
             Invalidate(FALSE);
         }
     }
@@ -261,10 +258,10 @@ void TViewer::OnPaint()
 
         ::SetStretchBltMode(pDC.m_hDC, COLORONCOLOR);		//모드 설정(안해주면 영상 축소 시 깨짐 현상)
 
-        m_rectDraw = CRect(dx, dy, dx + dw, dy + dh);
+        m_rectView = CRect(dx, dy, dx + dw, dy + dh);
 
         if (m_rectZoom.IsRectEmpty())
-            m_rectZoom = m_rectDraw;
+            m_rectZoom = m_rectView;
 
         if (m_dZoom > 1.0) {
             double x = m_rectZoom.left;
@@ -294,17 +291,6 @@ void TViewer::OnPaint()
             DisplayNavi(pDC.m_hDC, bitmapInfo);
         }
 	}
-
-
-    //// test
-    //CString str;
-    //str.Format(_T("test [%d, %d]"), m_ptZoom.x, m_ptZoom.y);
-    //pDC.FillSolidRect(CRect(0, 0, 200, 25), RGB(255, 255, 255));
-    //pDC.DrawText(str, CRect(0, 0, 200, 25), DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
-    //
-    //str.Format(_T("rect [%d, %d, %d, %d]"), m_rectZoom.left, m_rectZoom.top, m_rectZoom.Width(), m_rectZoom.Height());
-    //pDC.FillSolidRect(CRect(200, 0, 400, 25), RGB(255, 255, 255));
-    //pDC.DrawText(str, CRect(200, 0, 400, 25), DT_CENTER | DT_TABSTOP | DT_VCENTER | DT_SINGLELINE);
 }
 
 
@@ -324,8 +310,8 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
 
     }
 
-    cv::Point lt = ClientToImage(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectDraw, m_orgImage);
-    cv::Point br = ClientToImage(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectDraw, m_orgImage);
+    cv::Point lt = ClientToImage(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectView, m_orgImage);
+    cv::Point br = ClientToImage(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectView, m_orgImage);
     
     cv::drawMarker(showNavImage, m_ptImage, cv::Scalar(0, 255, 0), 0, showNavImage.cols / 10, showNavImage.cols / 100);
 
@@ -338,10 +324,10 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
     ScreenToClient(rect);
 
     ::StretchDIBits(hdc,
-        rect.right - m_rectDraw.Width() * 0.3,
-        rect.bottom - m_rectDraw.Height() * 0.3,
-        m_rectDraw.Width() * 0.3,
-        m_rectDraw.Height() * 0.3,
+        rect.right - m_rectView.Width() * 0.3,
+        rect.bottom - m_rectView.Height() * 0.3,
+        m_rectView.Width() * 0.3,
+        m_rectView.Height() * 0.3,
         0, 0, showNavImage.cols, showNavImage.rows,
         showNavImage.data,
         &bitmapInfo,

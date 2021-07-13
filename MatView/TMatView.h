@@ -4,7 +4,6 @@
 using namespace cv;
 using namespace std;
 
-#define T_CHECK_FOCUS	    3009
 #define IDC_CHECK_BOX	    3010
 
 #define COLOR_MENU          RGB(45, 45, 48)
@@ -13,7 +12,6 @@ using namespace std;
 #define MIN_ZOOM            1.0
 
 class TViewer;
-
 class CTMatView : public CWnd {
     DECLARE_DYNAMIC(CTMatView)
 
@@ -41,10 +39,10 @@ public:
     void            InitMatView();
     void            MoveWindow(CRect rect);
 
-    void            UpdateUI();
-    bool            GetNaviCheck() { return m_checkBox.GetCheck(); }
+    void            UpdateTool();
     void            ShowTool(bool bShow);
     void            SetImage(cv::Mat image);
+    bool            GetNaviCheck() { return m_checkBox.GetCheck(); }
 
 private:
     void            SetRectArea(CRect rect);
@@ -53,7 +51,6 @@ private:
     BOOL            LoadImageFile();
     BOOL            SaveImageFile();
 
-    // UI
     void            CreateView();
     void            CreateMenu();
     void            CreateButton(CMFCButton& button, CRect rect, eBTN_ID btnID, LPCTSTR str = _T(""));
@@ -63,15 +60,13 @@ private:
     CWnd*           m_pwndParent    = nullptr;
     TViewer*        m_pViewer       = nullptr;
 
-    bool            m_bLBDown       = false;      // 마우스 왼클릭
+    bool            m_bLBDown       = false;
     bool            m_bShowTool;
 
     CRect           m_rect[eRECT_NUM];
     CBrush          m_brush;
 
-    
-
-    // Menu
+    // Menu Button
     CMFCButton	    m_btnLoad;
     CMFCButton	    m_btnSave;
     CMFCButton	    m_btnFit;
@@ -83,7 +78,6 @@ public:
     afx_msg int		OnCreate(LPCREATESTRUCT lpCreateStruct);
     afx_msg void	OnShowWindow(BOOL bShow, UINT nStatus);
     afx_msg void	OnPaint();
-    afx_msg void	OnTimer(UINT_PTR nIDEvent);
     virtual BOOL	OnCommand(WPARAM wParam, LPARAM lParam);
     afx_msg BOOL    OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);

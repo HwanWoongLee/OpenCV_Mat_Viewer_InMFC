@@ -16,23 +16,24 @@ public:
 	void			FitImage();
 
 	cv::Mat			GetImage();
-	cv::Point2d		GetImagePts() { return m_ptImage; }
-	CPoint			GetViewPts() { return m_ptView; }
-	double			GetZoomRate() { return m_dZoom; }
-	cv::Scalar		GetImageColor() { return m_imgColor; }
+	cv::Point2d		GetImagePts()	{ return m_ptImage;		}
+	CPoint			GetViewPts()	{ return m_ptView;		}
+	double			GetZoomRate()	{ return m_dZoom;		}
+	cv::Scalar		GetImageColor() { return m_imgColor;	}
 
 private:
 	cv::Point2d     ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);
 
 	void            DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo);
 	void			CalcZoomRect(CPoint pt);
+	void			Zooming(short zDelta);
 
 private:
 	CTMatView*		m_pParent = nullptr;
 
 	CRect			m_clientRect;
-	CRect			m_rectDraw;			// 실제 그리고 있는 rect
-	CRect           m_rectZoom;
+	CRect			m_rectView;			// fit between client(view) and image
+	CRect           m_rectZoom;			// zoom area
 	
 	cv::Mat			m_orgImage;
 
@@ -40,13 +41,13 @@ private:
 
 	bool			m_bLButton;
 
-	CPoint			m_ptZoom;			// zoom 하는 중심(private)
+	CPoint			m_ptZoom;			// zoom 하는 중심
 	CPoint			m_ptLBStart;		// mouse clieck pos
 	CPoint			m_ptOffset;			// mouse offset 
 	CPoint			m_ptView;			// view point
 	cv::Point2d     m_ptImage;			// image point
 
-	cv::Scalar      m_imgColor;			// image color
+	cv::Scalar      m_imgColor;			// current mouse point image color
 
 protected:
 	DECLARE_MESSAGE_MAP()
