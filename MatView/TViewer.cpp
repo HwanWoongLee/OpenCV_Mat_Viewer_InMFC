@@ -17,9 +17,54 @@ TViewer::TViewer()
 TViewer::~TViewer()
 {
 }
+void TViewer::SetDrawImage(const cv::Mat& image) {
+    m_drawImage = image.clone();
+    m_showNavImage = m_orgImage.clone();
+
+    cv::resize(m_drawImage, m_drawImage, cv::Size(GDI_WIDTHBYTES(m_drawImage.cols * 8), m_drawImage.rows));     // 영상 가로길이는 4바이트의 배수여야한다...
+    cv::resize(m_showNavImage, m_showNavImage, cv::Size(GDI_WIDTHBYTES(m_showNavImage.cols * 8), m_showNavImage.rows));     
+
+    //BITMAPINFO bitmapInfo;
+    m_bitmapInfo.bmiHeader.biYPelsPerMeter = 0;
+    m_bitmapInfo.bmiHeader.biXPelsPerMeter = 0;
+    m_bitmapInfo.bmiHeader.biBitCount = 24;
+    m_bitmapInfo.bmiHeader.biWidth = m_drawImage.cols;
+    m_bitmapInfo.bmiHeader.biHeight = m_drawImage.rows;
+    m_bitmapInfo.bmiHeader.biPlanes = 1;
+    m_bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    m_bitmapInfo.bmiHeader.biCompression = BI_RGB;
+    m_bitmapInfo.bmiHeader.biClrImportant = 0;
+    m_bitmapInfo.bmiHeader.biSizeImage = 0;
+
+    if (m_drawImage.channels() == 3) {
+
+    }
+    else if (m_drawImage.channels() == 1) {
+        cvtColor(m_drawImage, m_drawImage, cv::COLOR_GRAY2RGB);
+    }
+    else if (m_drawImage.channels() == 4) {
+    }
+
+    if (m_showNavImage.channels() == 3) {
+
+    }
+    else if (m_showNavImage.channels() == 1) {
+        cvtColor(m_showNavImage, m_showNavImage, cv::COLOR_GRAY2RGB);
+    }
+    else if (m_showNavImage.channels() == 4) {
+
+    }
+
+    flip(m_drawImage, m_drawImage, 0);
+    flip(m_showNavImage, m_showNavImage, 0);
+
+    return;
+}
 
 void TViewer::DrawView(const cv::Mat& image) {
     m_orgImage = image.clone();
+    SetDrawImage(m_orgImage);
+
     m_rectZoom = CRect();
     m_rectView = CRect();
 
@@ -206,35 +251,35 @@ void TViewer::OnPaint()
     // draw image
 	if (!m_orgImage.empty()) {
         // image to bitmap
-        cv::Mat drawImage = m_orgImage.clone();
+        //cv::Mat drawImage = m_orgImage.clone();
+        //
+        //cv::resize(drawImage, drawImage, cv::Size(GDI_WIDTHBYTES(drawImage.cols * 8), drawImage.rows));     // 영상 가로길이는 4바이트의 배수여야한다...
+        //
+        //BITMAPINFO bitmapInfo;
+        //bitmapInfo.bmiHeader.biYPelsPerMeter    = 0;
+        //bitmapInfo.bmiHeader.biXPelsPerMeter    = 0;
+        //bitmapInfo.bmiHeader.biBitCount         = 24;
+        //bitmapInfo.bmiHeader.biWidth            = drawImage.cols;
+        //bitmapInfo.bmiHeader.biHeight           = drawImage.rows;
+        //bitmapInfo.bmiHeader.biPlanes           = 1;
+        //bitmapInfo.bmiHeader.biSize             = sizeof(BITMAPINFOHEADER);
+        //bitmapInfo.bmiHeader.biCompression      = BI_RGB;
+        //bitmapInfo.bmiHeader.biClrImportant     = 0;
+        //bitmapInfo.bmiHeader.biSizeImage        = 0;
+        //
+        //if (drawImage.channels() == 3) {
+        //
+        //}
+        //else if (drawImage.channels() == 1) {
+        //    cvtColor(drawImage, drawImage, cv::COLOR_GRAY2RGB);
+        //}
+        //else if (drawImage.channels() == 4) {
+        //}
+        //
+        //flip(drawImage, drawImage, 0);
 
-        cv::resize(drawImage, drawImage, cv::Size(GDI_WIDTHBYTES(drawImage.cols * 8), drawImage.rows));     // 영상 가로길이는 4바이트의 배수여야한다...
-
-        BITMAPINFO bitmapInfo;
-        bitmapInfo.bmiHeader.biYPelsPerMeter    = 0;
-        bitmapInfo.bmiHeader.biXPelsPerMeter    = 0;
-        bitmapInfo.bmiHeader.biBitCount         = 24;
-        bitmapInfo.bmiHeader.biWidth            = drawImage.cols;
-        bitmapInfo.bmiHeader.biHeight           = drawImage.rows;
-        bitmapInfo.bmiHeader.biPlanes           = 1;
-        bitmapInfo.bmiHeader.biSize             = sizeof(BITMAPINFOHEADER);
-        bitmapInfo.bmiHeader.biCompression      = BI_RGB;
-        bitmapInfo.bmiHeader.biClrImportant     = 0;
-        bitmapInfo.bmiHeader.biSizeImage        = 0;
-
-        if (drawImage.channels() == 3) {
-
-        }
-        else if (drawImage.channels() == 1) {
-            cvtColor(drawImage, drawImage, cv::COLOR_GRAY2RGB);
-        }
-        else if (drawImage.channels() == 4) {
-        }
-
-        flip(drawImage, drawImage, 0);
-
-        double image_w      = drawImage.cols;
-        double image_h      = drawImage.rows;
+        double image_w      = m_drawImage.cols;
+        double image_h      = m_drawImage.rows;
         double rect_w       = m_clientRect.Width();
         double rect_h       = m_clientRect.Height();
 
@@ -280,15 +325,15 @@ void TViewer::OnPaint()
         // draw bitmap
         ::StretchDIBits(pDC.m_hDC,			        //출력대상 핸들
             dx, dy, dw, dh,				            //출력대상 좌표
-            0, 0, drawImage.cols, drawImage.rows,	//원본의 좌표
-            drawImage.data,							//데이터 시작 주소
-            &bitmapInfo,							//BITMAPINFO 구조체 시작 주소
+            0, 0, m_drawImage.cols, m_drawImage.rows,	//원본의 좌표
+            m_drawImage.data,							//데이터 시작 주소
+            &m_bitmapInfo,							//BITMAPINFO 구조체 시작 주소
             DIB_RGB_COLORS,
             SRCCOPY);
 
         // draw navigation view
         if (m_pParent->GetNaviCheck()) {
-            DisplayNavi(pDC.m_hDC, bitmapInfo);
+            DisplayNavi(pDC.m_hDC, m_bitmapInfo);
         }
 	}
 }
@@ -298,26 +343,49 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
     if (m_orgImage.empty())
         return;
 
-    cv::Mat showNavImage = m_orgImage.clone();
+    //cv::Mat showNavImage = m_orgImage.clone();
+    //
+    //if (showNavImage.channels() == 3) {
+    //
+    //}
+    //else if (showNavImage.channels() == 1) {
+    //    cvtColor(showNavImage, showNavImage, cv::COLOR_GRAY2RGB);
+    //}
+    //else if (showNavImage.channels() == 4) {
+    //
+    //}
+    //
+    //flip(showNavImage, showNavImage, 0);
+    //cv::resize(showNavImage, showNavImage, cv::Size(GDI_WIDTHBYTES(showNavImage.cols * 8), showNavImage.rows));
+    //cv::Mat showNavImage = m_showNavImage.clone();
 
-    if (showNavImage.channels() == 3) {
+    auto ClientToNavi = [&](CPoint ptClient, CRect rectNavi)->CPoint {
+        double dW = (double)rectNavi.Width() / (double)m_rectView.Width();
+        double dH = (double)rectNavi.Height() / (double)m_rectView.Height();
+        double dRate = dW > dH ? dW : dH;
 
-    }
-    else if (showNavImage.channels() == 1) {
-        cvtColor(showNavImage, showNavImage, cv::COLOR_GRAY2RGB);
-    }
-    else if (showNavImage.channels() == 4) {
+        ptClient -= m_rectView.TopLeft();
+        ptClient += rectNavi.TopLeft();
 
-    }
+        double dx = ptClient.x * dRate;
+        double dy = ptClient.y * dRate;
 
-    cv::Point lt = ClientToImage(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectView, m_orgImage);
-    cv::Point br = ClientToImage(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectView, m_orgImage);
+        //if (dx > m_orgImage.cols - 1) dx = m_orgImage.cols - 1;
+        //else if (dx < 0) dx = 0;
+        //
+        //if (dy > m_orgImage.rows - 1) dy = m_orgImage.rows - 1;
+        //else if (dy < 0) dy = 0;
+        //
+        //ptImage = cv::Point2d(dx, dy);
+
+        return CPoint(dx, dy);
+    };
+
+    //cv::Point lt = ClientToImage(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectView, m_orgImage);
+    //cv::Point br = ClientToImage(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectView, m_orgImage);
     
-    cv::drawMarker(showNavImage, m_ptImage, cv::Scalar(0, 255, 0), 0, showNavImage.cols / 10, showNavImage.cols / 100);
-
-    cv::rectangle(showNavImage, cv::Rect(lt.x, lt.y, br.x - lt.x, br.y - lt.y), cv::Scalar(0,255,0), showNavImage.cols * 0.01);
-    cv::resize(showNavImage, showNavImage, cv::Size(GDI_WIDTHBYTES(showNavImage.cols * 8), showNavImage.rows));
-    flip(showNavImage, showNavImage, 0);
+    //cv::drawMarker(showNavImage, cv::Point(m_ptImage.x, showNavImage.rows - m_ptImage.y), cv::Scalar(0, 255, 0), 0, showNavImage.cols / 10, showNavImage.cols / 100);
+    //cv::rectangle(showNavImage, cv::Rect(lt.x, showNavImage.rows - br.y, br.x - lt.x, br.y - lt.y), cv::Scalar(0, 255, 0), showNavImage.cols * 0.01);
 
     CRect rect;
     GetWindowRect(rect);
@@ -328,9 +396,19 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
         rect.bottom - m_rectView.Height() * 0.3,
         m_rectView.Width() * 0.3,
         m_rectView.Height() * 0.3,
-        0, 0, showNavImage.cols, showNavImage.rows,
-        showNavImage.data,
+        0, 0, m_showNavImage.cols, m_showNavImage.rows,
+        m_showNavImage.data,
         &bitmapInfo,
         DIB_RGB_COLORS,
         SRCCOPY);
+
+    CRect rectNavi(rect.right - m_rectView.Width() * 0.3,
+        rect.bottom - m_rectView.Height() * 0.3,
+        rect.right,
+        rect.bottom);
+
+    CPoint lt = ClientToNavi(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), rectNavi);
+    CPoint br = ClientToNavi(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), rectNavi);
+
+    ::Rectangle(hdc, lt.x, lt.y, br.x, br.y);
 }

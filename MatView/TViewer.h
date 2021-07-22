@@ -27,6 +27,9 @@ private:
 	void            DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo);
 	void			CalcZoomRect(CPoint pt);
 	void			Zooming(short zDelta);
+	
+	void			SetDrawImage(const cv::Mat& image);
+	BITMAPINFO		m_bitmapInfo;
 
 private:
 	CTMatView*		m_pParent = nullptr;
@@ -36,6 +39,8 @@ private:
 	CRect           m_rectZoom;			// zoom area
 	
 	cv::Mat			m_orgImage;
+	cv::Mat			m_drawImage;
+	cv::Mat			m_showNavImage;
 
 	double			m_dZoom;
 
