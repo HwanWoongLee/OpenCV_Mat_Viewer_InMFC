@@ -343,32 +343,19 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
     if (m_orgImage.empty())
         return;
 
-    //cv::Mat showNavImage = m_orgImage.clone();
-    //
-    //if (showNavImage.channels() == 3) {
-    //
-    //}
-    //else if (showNavImage.channels() == 1) {
-    //    cvtColor(showNavImage, showNavImage, cv::COLOR_GRAY2RGB);
-    //}
-    //else if (showNavImage.channels() == 4) {
-    //
-    //}
-    //
-    //flip(showNavImage, showNavImage, 0);
-    //cv::resize(showNavImage, showNavImage, cv::Size(GDI_WIDTHBYTES(showNavImage.cols * 8), showNavImage.rows));
-    //cv::Mat showNavImage = m_showNavImage.clone();
-
     auto ClientToNavi = [&](CPoint ptClient, CRect rectNavi)->CPoint {
         double dW = (double)rectNavi.Width() / (double)m_rectView.Width();
         double dH = (double)rectNavi.Height() / (double)m_rectView.Height();
         double dRate = dW > dH ? dW : dH;
 
         ptClient -= m_rectView.TopLeft();
-        ptClient += rectNavi.TopLeft();
 
         double dx = ptClient.x * dRate;
         double dy = ptClient.y * dRate;
+
+        CPoint ptNavi = CPoint(dx, dy);
+
+        ptNavi += rectNavi.TopLeft();
 
         //if (dx > m_orgImage.cols - 1) dx = m_orgImage.cols - 1;
         //else if (dx < 0) dx = 0;
@@ -378,14 +365,8 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
         //
         //ptImage = cv::Point2d(dx, dy);
 
-        return CPoint(dx, dy);
+        return ptNavi;
     };
-
-    //cv::Point lt = ClientToImage(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectView, m_orgImage);
-    //cv::Point br = ClientToImage(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), m_rectView, m_orgImage);
-    
-    //cv::drawMarker(showNavImage, cv::Point(m_ptImage.x, showNavImage.rows - m_ptImage.y), cv::Scalar(0, 255, 0), 0, showNavImage.cols / 10, showNavImage.cols / 100);
-    //cv::rectangle(showNavImage, cv::Rect(lt.x, showNavImage.rows - br.y, br.x - lt.x, br.y - lt.y), cv::Scalar(0, 255, 0), showNavImage.cols * 0.01);
 
     CRect rect;
     GetWindowRect(rect);
@@ -409,6 +390,18 @@ void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
 
     CPoint lt = ClientToNavi(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), rectNavi);
     CPoint br = ClientToNavi(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), rectNavi);
+    CPoint pt = ClientToNavi(m_ptZoom, rectNavi);
+
+    HBRUSH brush    = (HBRUSH)GetStockObject(NULL_BRUSH);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
+    HPEN pen        = (HPEN)CreatePen(PS_SOLID, 3, RGB(0, 255, 0));
+    HPEN oldPen     = (HPEN)SelectObject(hdc, pen);
 
     ::Rectangle(hdc, lt.x, lt.y, br.x, br.y);
+    ::Ellipse(hdc, pt.x - 1, pt.y - 1, pt.x + 1, pt.y + 1);
+
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(brush);
+    DeleteObject(pen);
 }
