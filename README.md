@@ -22,6 +22,6 @@ MFC Project to View OpenCV(C++) Mat.
 ~~~
   /// 중략...
   cv::Mat imgLoad = cv::imread(strPath);
-  view.SetImage(image);
+  view.SetImage(imgLoad);
   
 ~~~
