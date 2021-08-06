@@ -42,6 +42,8 @@ public:
     void            UpdateTool();
     void            ShowTool(bool bShow);
     void            SetImage(cv::Mat image);
+    cv::Mat         GetImage();
+    void            GetImage(cv::Mat& image);
     bool            GetNaviCheck() { return m_checkBox.GetCheck(); }
 
 private:

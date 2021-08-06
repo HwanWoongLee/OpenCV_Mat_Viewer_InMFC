@@ -16,13 +16,13 @@ public:
 	void			FitImage();
 
 	cv::Mat			GetImage();
-	cv::Point2d		GetImagePts()	{ return m_ptImage;		}
+	cv::Point		GetImagePts()	{ return m_ptImage;		}
 	CPoint			GetViewPts()	{ return m_ptView;		}
 	double			GetZoomRate()	{ return m_dZoom;		}
 	cv::Scalar		GetImageColor() { return m_imgColor;	}
 
 private:
-	cv::Point2d     ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);
+	cv::Point		ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);
 
 	void            DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo);
 	void			CalcZoomRect(CPoint pt);
@@ -50,7 +50,7 @@ private:
 	CPoint			m_ptLBStart;		// mouse clieck pos
 	CPoint			m_ptOffset;			// mouse offset 
 	CPoint			m_ptView;			// view point
-	cv::Point2d     m_ptImage;			// image point
+	cv::Point		m_ptImage;			// image point
 
 	cv::Scalar      m_imgColor;			// current mouse point image color
 

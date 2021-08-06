@@ -1,5 +1,5 @@
 ﻿#include "pch.h"
-#include "MatView.h"
+#include "TMatView.h"
 #include "TViewer.h"
 #include "TMatView.h"
 
@@ -63,6 +63,9 @@ void TViewer::SetDrawImage(const cv::Mat& image) {
 
 void TViewer::DrawView(const cv::Mat& image) {
     m_orgImage = image.clone();
+    if (m_orgImage.channels() == 4)
+        cvtColor(m_orgImage, m_orgImage, cv::COLOR_BGRA2BGR);
+
     SetDrawImage(m_orgImage);
 
     m_rectZoom = CRect();
@@ -83,8 +86,8 @@ void TViewer::FitImage() {
     Invalidate(FALSE);
 }
 
-cv::Point2d TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image) {
-    cv::Point2d ptImage(-1, -1);
+cv::Point TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image) {
+    cv::Point ptImage(-1, -1);
     
     if (clientRect.IsRectEmpty() || image.empty())
         return ptImage;
@@ -104,7 +107,7 @@ cv::Point2d TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat im
     if (dy > m_orgImage.rows - 1) dy = m_orgImage.rows - 1;
     else if (dy < 0) dy = 0;
 
-    ptImage = cv::Point2d(dx, dy);
+    ptImage = cv::Point(dx, dy);
 
     return ptImage;
 }
@@ -198,20 +201,20 @@ void TViewer::OnMouseMove(UINT nFlags, CPoint point)
 
         m_ptView = point;
         CPoint pt = m_ptView - m_rectView.TopLeft();
-        m_ptZoom = CPoint(pt.x / m_dZoom, pt.y / m_dZoom);
-        m_ptZoom += CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom);
+        m_ptZoom = CPoint(floor((pt.x / m_dZoom) + .5), floor((pt.y / m_dZoom) + .5));
+        m_ptZoom += CPoint(floor((m_ptOffset.x / m_dZoom) + .5), floor((m_ptOffset.y / m_dZoom) + .5));
         m_ptZoom += m_rectZoom.TopLeft();
 
         m_ptImage = ClientToImage(m_ptZoom, m_rectView, m_orgImage);
 
-        if (m_ptImage != cv::Point2d(-1, -1)) {
+        if (m_ptImage != cv::Point(-1, -1)) {
             if (m_orgImage.channels() == 1) {
                 m_imgColor = cv::Scalar(m_orgImage.at<uchar>(m_ptImage));
             }
             else if (m_orgImage.channels() == 3) {
                 m_imgColor = cv::Scalar(m_orgImage.at<cv::Vec3b>(m_ptImage)[0],
-                    m_orgImage.at<cv::Vec3b>(m_ptImage)[1],
-                    m_orgImage.at<cv::Vec3b>(m_ptImage)[2]);
+                                        m_orgImage.at<cv::Vec3b>(m_ptImage)[1],
+                                        m_orgImage.at<cv::Vec3b>(m_ptImage)[2]);
             }
         }
 

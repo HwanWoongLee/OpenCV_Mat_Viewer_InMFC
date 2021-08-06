@@ -73,6 +73,18 @@ void CTMatView::SetImage(cv::Mat image) {
     }
 }
 
+cv::Mat CTMatView::GetImage() {
+    if (m_pViewer) {
+        return m_pViewer->GetImage();
+    }
+}
+
+void CTMatView::GetImage(cv::Mat& image) {
+    if (m_pViewer) {
+        image = m_pViewer->GetImage();
+    }
+}
+
 void CTMatView::MoveWindow(CRect rect) {
     SetParentWnd();
     SetRectArea(rect);
@@ -126,14 +138,16 @@ void CTMatView::CreateMenu() {
     CRect rect = m_rect[eRECT_MENU];
 
     double dh = rect.Height();
-    double dw = rect.Width() / 30;
+    //double dw = rect.Width();
 
-    CRect rectLoad              = CRect(dw * 0,     0, dw * 2,  dh);
-    CRect rectSave              = CRect(dw * 2,     0, dw * 4,  dh);
-    CRect rectFit               = CRect(dw * 4,     0, dw * 5,  dh);
-    CRect rectNav               = CRect(dw * 28,    0, dw * 30, dh);
-    m_rect[eRECT_ZOOM_RATE]     = CRect(dw * 5,     0, dw * 8,  dh);
-    m_rect[eRECT_COORD]         = CRect(dw * 8,     0, dw * 27, dh);
+    double dButtonWidth = 30.0;
+
+    CRect rectLoad          = CRect(dButtonWidth * 0, 0, dButtonWidth * 2, dh);
+    CRect rectSave          = CRect(dButtonWidth * 2, 0, dButtonWidth * 4, dh);
+    CRect rectFit           = CRect(dButtonWidth * 4, 0, dButtonWidth * 5, dh);
+    m_rect[eRECT_ZOOM_RATE] = CRect(dButtonWidth * 5, 0, dButtonWidth * 7, dh);
+    CRect rectNav           = CRect(rect.right - (dButtonWidth * 2), 0, rect.right, dh);
+    m_rect[eRECT_COORD]     = CRect(m_rect[eRECT_ZOOM_RATE].right, 0, rectNav.left - 5, dh);
 
     m_btnLoad.DestroyWindow();
     m_btnSave.DestroyWindow();
@@ -301,7 +315,7 @@ void CTMatView::OnPaint()
     auto ptView = m_pViewer->GetViewPts();
     auto imgColor = m_pViewer->GetImageColor();
 
-    str.Format(_T("Image [%.1lf, %.1lf] / View [%d, %d] / Color [%.0lf %.0lf %.0lf]"), ptImage.x, ptImage.y, ptView.x, ptView.y, imgColor[0], imgColor[1], imgColor[2]);
+    str.Format(_T("Image [%d, %d] / View [%d, %d] / Color [%.0lf %.0lf %.0lf]"), ptImage.x, ptImage.y, ptView.x, ptView.y, imgColor[0], imgColor[1], imgColor[2]);
     pDC.Rectangle(m_rect[eRECT_COORD]);
     pDC.SetTextColor(RGB(0, 0, 0));
     pDC.SetBkColor(RGB(255, 255, 255));
