@@ -163,7 +163,8 @@ void CTMatView::CreateMenu() {
     }
     else {
         SetWindowTheme(m_checkBox.m_hWnd, _T(""), _T(""));
-        m_checkBox.SetCheck(m_bShowTool);
+        //m_checkBox.SetCheck(m_bShowTool);
+        m_checkBox.SetCheck(false);
     }
 }
 

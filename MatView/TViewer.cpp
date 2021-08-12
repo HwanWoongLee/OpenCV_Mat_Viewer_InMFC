@@ -253,34 +253,6 @@ void TViewer::OnPaint()
 
     // draw image
 	if (!m_orgImage.empty()) {
-        // image to bitmap
-        //cv::Mat drawImage = m_orgImage.clone();
-        //
-        //cv::resize(drawImage, drawImage, cv::Size(GDI_WIDTHBYTES(drawImage.cols * 8), drawImage.rows));     // 영상 가로길이는 4바이트의 배수여야한다...
-        //
-        //BITMAPINFO bitmapInfo;
-        //bitmapInfo.bmiHeader.biYPelsPerMeter    = 0;
-        //bitmapInfo.bmiHeader.biXPelsPerMeter    = 0;
-        //bitmapInfo.bmiHeader.biBitCount         = 24;
-        //bitmapInfo.bmiHeader.biWidth            = drawImage.cols;
-        //bitmapInfo.bmiHeader.biHeight           = drawImage.rows;
-        //bitmapInfo.bmiHeader.biPlanes           = 1;
-        //bitmapInfo.bmiHeader.biSize             = sizeof(BITMAPINFOHEADER);
-        //bitmapInfo.bmiHeader.biCompression      = BI_RGB;
-        //bitmapInfo.bmiHeader.biClrImportant     = 0;
-        //bitmapInfo.bmiHeader.biSizeImage        = 0;
-        //
-        //if (drawImage.channels() == 3) {
-        //
-        //}
-        //else if (drawImage.channels() == 1) {
-        //    cvtColor(drawImage, drawImage, cv::COLOR_GRAY2RGB);
-        //}
-        //else if (drawImage.channels() == 4) {
-        //}
-        //
-        //flip(drawImage, drawImage, 0);
-
         double image_w      = m_drawImage.cols;
         double image_h      = m_drawImage.rows;
         double rect_w       = m_clientRect.Width();
