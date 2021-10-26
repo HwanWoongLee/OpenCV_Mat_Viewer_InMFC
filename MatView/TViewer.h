@@ -54,6 +54,10 @@ private:
 
 	cv::Scalar      m_imgColor;			// current mouse point image color
 
+	// add critical section
+	CCriticalSection m_cs;
+
+
 protected:
 	DECLARE_MESSAGE_MAP()
 public:
