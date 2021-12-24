@@ -116,6 +116,25 @@ cv::Point TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat imag
 	return ptImage;
 }
 
+CPoint TViewer::ImageToClient(cv::Point imagePt, CRect clientRect, cv::Mat image) {
+	CPoint ptClient(-1, -1);
+
+	if (clientRect.IsRectEmpty() || image.empty())
+		return ptClient;
+
+	double dRateToClient_x = (double)clientRect.Width() / (double)image.cols;
+	double dRateToClient_y = (double)clientRect.Height() / (double)image.rows;
+	double dRateToClient = dRateToClient_x > dRateToClient_y ? dRateToClient_x : dRateToClient_y;
+
+	double dx = imagePt.x * dRateToClient;
+	double dy = imagePt.y * dRateToClient;
+
+	ptClient.x = dx;
+	ptClient.y = dy;
+
+	return ptClient + clientRect.TopLeft();
+}
+
 
 void TViewer::CalcZoomRect(CPoint pt) {
 	double dw = m_rectView.Width() / m_dZoom;
@@ -172,6 +191,8 @@ BEGIN_MESSAGE_MAP(TViewer, CFrameWnd)
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSEWHEEL()
 	ON_WM_PAINT()
+	ON_WM_RBUTTONDOWN()
+	ON_WM_RBUTTONUP()
 END_MESSAGE_MAP()
 
 
@@ -194,6 +215,46 @@ void TViewer::OnLButtonUp(UINT nFlags, CPoint point)
 		Invalidate(FALSE);
 	}
 	CFrameWnd::OnLButtonUp(nFlags, point);
+}
+
+
+void TViewer::OnRButtonDown(UINT nFlags, CPoint point)
+{
+	m_bRButton = true;
+
+	CFrameWnd::OnRButtonDown(nFlags, point);
+}
+
+
+void TViewer::OnRButtonUp(UINT nFlags, CPoint point)
+{
+	if (m_bRButton) {
+		if (m_iRButton == 0) {
+			m_ptRClientStart = point;
+			m_iRButton++;
+
+			m_ptRImageStart = ClientToImage(m_ptZoom, m_rectView, m_orgImage);
+
+			cv::Mat temp = m_orgImage.clone();
+			cv::drawMarker(temp, m_ptRImageStart, cv::Scalar(0, 255, 0), 0, 30, 2);
+			SetDrawImage(temp);
+		}
+		else if (m_iRButton == 1) {
+			m_ptRClientEnd = point;
+			m_iRButton = 0;
+
+			m_ptRImageEnd = ClientToImage(m_ptZoom, m_rectView, m_orgImage);
+
+			cv::Mat temp = m_orgImage.clone();
+			cv::rectangle(temp, cv::Rect(m_ptRImageStart, m_ptRImageEnd), cv::Scalar(0, 255, 0), 1);
+			SetDrawImage(temp);
+		}
+
+		Invalidate(FALSE);
+		m_bRButton = false;
+	}
+
+	CFrameWnd::OnRButtonUp(nFlags, point);
 }
 
 
@@ -317,6 +378,22 @@ void TViewer::OnPaint()
 			DisplayNavi(pDC.m_hDC, m_bitmapInfo);
 		}
 	}
+
+	//m_ptView = point;
+	//CPoint pt = m_ptView - m_rectView.TopLeft();
+	// 이거 역으로 연산해서 더해 줘야함....아마도 
+	//m_ptZoom = CPoint(floor((pt.x / m_dZoom) + .5), floor((pt.y / m_dZoom) + .5));
+	//m_ptZoom += CPoint(floor((m_ptOffset.x / m_dZoom) + .5), floor((m_ptOffset.y / m_dZoom) + .5));
+	//m_ptZoom += m_rectZoom.TopLeft();
+
+	CPoint pt1 = ImageToClient(m_ptRImageStart, m_rectView, m_orgImage)	;
+	CPoint pt2 = ImageToClient(m_ptRImageEnd, m_rectView, m_orgImage)	;
+	
+	CPen pen(PS_SOLID, 2, RGB(0, 0, 255));
+	pDC.SelectObject(&pen);							// 펜 선택
+	SelectObject(pDC, GetStockObject(NULL_BRUSH));	// 내부 투명
+	pDC.Rectangle(pt1.x, pt1.y, pt2.x, pt2.y);
+
 }
 
 

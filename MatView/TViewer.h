@@ -23,6 +23,7 @@ public:
 
 private:
 	cv::Point		ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image);
+	CPoint			ImageToClient(cv::Point imagePt, CRect clientRect, cv::Mat image);
 
 	void            DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo);
 	void			CalcZoomRect(CPoint pt);
@@ -45,7 +46,7 @@ private:
 	double			m_dZoom;
 
 	bool			m_bLButton;
-
+	
 	CPoint			m_ptZoom;			// zoom 하는 중심
 	CPoint			m_ptLBStart;		// mouse clieck pos
 	CPoint			m_ptOffset;			// mouse offset 
@@ -57,6 +58,12 @@ private:
 	// add critical section
 	CCriticalSection m_cs;
 
+	int				m_iRButton = 0;		// 우클릭 판단용 변수
+	bool			m_bRButton = false;
+	CPoint			m_ptRClientStart;
+	CPoint			m_ptRClientEnd;
+	cv::Point		m_ptRImageStart;
+	cv::Point		m_ptRImageEnd;
 
 protected:
 	DECLARE_MESSAGE_MAP()
@@ -66,6 +73,8 @@ public:
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
 	afx_msg void OnPaint();
+	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
 };
 
 
