@@ -5,11 +5,13 @@
 
 IMPLEMENT_DYNCREATE(TViewer, CFrameWnd)
 
+CCriticalSection TViewer::m_cs;
+
 TViewer::TViewer(CWnd* pParent)
 {
-	m_bLButton = false;
-	m_dZoom = 1.0;
-	m_pParent = (CTMatView*)pParent;
+    m_bLButton  = false;
+    m_dZoom     = 1.0;
+    m_pParent   = (CTMatView*)pParent;
 }
 TViewer::TViewer()
 {
@@ -18,60 +20,83 @@ TViewer::~TViewer()
 {
 }
 void TViewer::SetDrawImage(const cv::Mat& image) {
-	m_drawImage = image.clone();
-	m_showNavImage = m_orgImage.clone();
+	if (image.empty())
+		return;
+	try {
+		m_cs.Lock();
 
-	cv::resize(m_drawImage, m_drawImage, cv::Size(GDI_WIDTHBYTES(m_drawImage.cols * 8), m_drawImage.rows));     // 영상 가로길이는 4바이트의 배수여야한다...
-	cv::resize(m_showNavImage, m_showNavImage, cv::Size(GDI_WIDTHBYTES(m_showNavImage.cols * 8), m_showNavImage.rows));
+		m_drawImage = image.clone();
+		m_showNavImage = m_orgImage.clone();
 
-	//BITMAPINFO bitmapInfo;
-	m_bitmapInfo.bmiHeader.biYPelsPerMeter = 0;
-	m_bitmapInfo.bmiHeader.biXPelsPerMeter = 0;
-	m_bitmapInfo.bmiHeader.biBitCount = 24;
-	m_bitmapInfo.bmiHeader.biWidth = m_drawImage.cols;
-	m_bitmapInfo.bmiHeader.biHeight = m_drawImage.rows;
-	m_bitmapInfo.bmiHeader.biPlanes = 1;
-	m_bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-	m_bitmapInfo.bmiHeader.biCompression = BI_RGB;
-	m_bitmapInfo.bmiHeader.biClrImportant = 0;
-	m_bitmapInfo.bmiHeader.biSizeImage = 0;
+		cv::resize(m_drawImage, m_drawImage, cv::Size(GDI_WIDTHBYTES(m_drawImage.cols * 8), m_drawImage.rows));     // 영상 가로길이는 4바이트의 배수여야한다...
+		cv::resize(m_showNavImage, m_showNavImage, cv::Size(GDI_WIDTHBYTES(m_showNavImage.cols * 8), m_showNavImage.rows));
 
-	if (m_drawImage.channels() == 3) {
+		//BITMAPINFO bitmapInfo;
+		m_bitmapInfo.bmiHeader.biYPelsPerMeter = 0;
+		m_bitmapInfo.bmiHeader.biXPelsPerMeter = 0;
+		m_bitmapInfo.bmiHeader.biBitCount = 24;
+		m_bitmapInfo.bmiHeader.biWidth = m_drawImage.cols;
+		m_bitmapInfo.bmiHeader.biHeight = m_drawImage.rows;
+		m_bitmapInfo.bmiHeader.biPlanes = 1;
+		m_bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		m_bitmapInfo.bmiHeader.biCompression = BI_RGB;
+		m_bitmapInfo.bmiHeader.biClrImportant = 0;
+		m_bitmapInfo.bmiHeader.biSizeImage = 0;
 
+		if (m_drawImage.channels() == 3) {
+
+		}
+		else if (m_drawImage.channels() == 1) {
+			cvtColor(m_drawImage, m_drawImage, cv::COLOR_GRAY2RGB);
+		}
+		else if (m_drawImage.channels() == 4) {
+		}
+
+		if (m_showNavImage.channels() == 3) {
+
+		}
+		else if (m_showNavImage.channels() == 1) {
+			cvtColor(m_showNavImage, m_showNavImage, cv::COLOR_GRAY2RGB);
+		}
+		else if (m_showNavImage.channels() == 4) {
+
+		}
+
+		if (m_pParent && m_pParent->GetGrid()) {
+			cv::line(m_drawImage,
+				cv::Point(m_drawImage.cols / 2, 0),
+				cv::Point(m_drawImage.cols / 2, m_drawImage.rows),
+				cv::Scalar(0, 0, 255), 2);
+
+			cv::line(m_drawImage,
+				cv::Point(0, m_drawImage.rows / 2),
+				cv::Point(m_drawImage.cols, m_drawImage.rows / 2),
+				cv::Scalar(0, 0, 255), 2);
+		}
+
+		flip(m_drawImage, m_drawImage, 0);
+		flip(m_showNavImage, m_showNavImage, 0);
+
+		m_cs.Unlock();
 	}
-	else if (m_drawImage.channels() == 1) {
-		cvtColor(m_drawImage, m_drawImage, cv::COLOR_GRAY2RGB);
+	catch (std::exception& e) {
+		auto error = e.what();
+		return;
 	}
-	else if (m_drawImage.channels() == 4) {
-	}
-
-	if (m_showNavImage.channels() == 3) {
-
-	}
-	else if (m_showNavImage.channels() == 1) {
-		cvtColor(m_showNavImage, m_showNavImage, cv::COLOR_GRAY2RGB);
-	}
-	else if (m_showNavImage.channels() == 4) {
-
-	}
-
-	flip(m_drawImage, m_drawImage, 0);
-	flip(m_showNavImage, m_showNavImage, 0);
-
-	return;
+    return;
 }
 
 void TViewer::DrawView(const cv::Mat& image) {
 	m_cs.Lock();
 
-	m_orgImage = image.clone();
-	if (m_orgImage.channels() == 4)
-		cvtColor(m_orgImage, m_orgImage, cv::COLOR_BGRA2BGR);
+    m_orgImage = image.clone();
+    if (m_orgImage.channels() == 4)
+        cvtColor(m_orgImage, m_orgImage, cv::COLOR_BGRA2BGR);
 
-	SetDrawImage(m_orgImage);
+    SetDrawImage(m_orgImage);
 
-	m_rectZoom = CRect();
-	m_rectView = CRect();
+    m_rectZoom = CRect();
+    m_rectView = CRect();
 
 	Invalidate(FALSE);
 
@@ -79,107 +104,92 @@ void TViewer::DrawView(const cv::Mat& image) {
 }
 
 cv::Mat TViewer::GetImage() {
-	return m_orgImage.clone();
+	m_cs.Lock();
+	cv::Mat image = m_orgImage.clone();
+	m_cs.Unlock();
+
+	return image;
 }
 
 void TViewer::FitImage() {
-	m_dZoom = 1.0;
-	m_ptOffset = CPoint(0, 0);
-	m_rectZoom = m_rectView;
+    m_dZoom     = 1.0;
+    m_ptOffset  = CPoint(0, 0);
+    m_rectZoom  = m_rectView;
 
-	Invalidate(FALSE);
+    Invalidate(FALSE);
 }
 
 cv::Point TViewer::ClientToImage(CPoint clientPt, CRect clientRect, cv::Mat image) {
-	cv::Point ptImage(-1, -1);
+    cv::Point ptImage(-1, -1);
+    
+    if (clientRect.IsRectEmpty() || image.empty())
+        return ptImage;
 
-	if (clientRect.IsRectEmpty() || image.empty())
-		return ptImage;
+    double dRateToImage_x = (double)image.cols / (double)clientRect.Width();
+    double dRateToImage_y = (double)image.rows / (double)clientRect.Height();
+    double dRateToImage = dRateToImage_x > dRateToImage_y ? dRateToImage_x : dRateToImage_y;
 
-	double dRateToImage_x = (double)image.cols / (double)clientRect.Width();
-	double dRateToImage_y = (double)image.rows / (double)clientRect.Height();
-	double dRateToImage = dRateToImage_x > dRateToImage_y ? dRateToImage_x : dRateToImage_y;
+    clientPt -= clientRect.TopLeft();
 
-	clientPt -= clientRect.TopLeft();
+    double dx = clientPt.x * dRateToImage;
+    double dy = clientPt.y * dRateToImage;
 
-	double dx = clientPt.x * dRateToImage;
-	double dy = clientPt.y * dRateToImage;
+    if (dx > m_orgImage.cols - 1) dx = m_orgImage.cols - 1;
+    else if (dx < 0) dx = 0;
 
-	if (dx > m_orgImage.cols - 1) dx = m_orgImage.cols - 1;
-	else if (dx < 0) dx = 0;
+    if (dy > m_orgImage.rows - 1) dy = m_orgImage.rows - 1;
+    else if (dy < 0) dy = 0;
 
-	if (dy > m_orgImage.rows - 1) dy = m_orgImage.rows - 1;
-	else if (dy < 0) dy = 0;
+    ptImage = cv::Point(dx, dy);
 
-	ptImage = cv::Point(dx, dy);
-
-	return ptImage;
-}
-
-CPoint TViewer::ImageToClient(cv::Point imagePt, CRect clientRect, cv::Mat image) {
-	CPoint ptClient(-1, -1);
-
-	if (clientRect.IsRectEmpty() || image.empty())
-		return ptClient;
-
-	double dRateToClient_x = (double)clientRect.Width() / (double)image.cols;
-	double dRateToClient_y = (double)clientRect.Height() / (double)image.rows;
-	double dRateToClient = dRateToClient_x > dRateToClient_y ? dRateToClient_x : dRateToClient_y;
-
-	double dx = imagePt.x * dRateToClient;
-	double dy = imagePt.y * dRateToClient;
-
-	ptClient.x = dx;
-	ptClient.y = dy;
-
-	return ptClient + clientRect.TopLeft();
+    return ptImage;
 }
 
 
 void TViewer::CalcZoomRect(CPoint pt) {
-	double dw = m_rectView.Width() / m_dZoom;
-	double dh = m_rectView.Height() / m_dZoom;
+    double dw = m_rectView.Width() / m_dZoom;
+    double dh = m_rectView.Height() / m_dZoom;
 
-	double dZoomRate = m_rectZoom.Width() / dw;
+    double dZoomRate = m_rectZoom.Width() / dw;
 
-	double dx = pt.x - (((double)pt.x - (double)m_rectZoom.left) / dZoomRate);
-	double dy = pt.y - (((double)pt.y - (double)m_rectZoom.top) / dZoomRate);
+    double dx = pt.x - (((double)pt.x - (double)m_rectZoom.left) / dZoomRate);
+    double dy = pt.y - (((double)pt.y - (double)m_rectZoom.top)  / dZoomRate);
 
-	dx += m_ptOffset.x / m_dZoom;
-	dy += m_ptOffset.y / m_dZoom;
+    dx += m_ptOffset.x / m_dZoom;
+    dy += m_ptOffset.y / m_dZoom;
 
-	if (dx < m_rectView.left) dx = m_rectView.left;
-	else if (dx + dw > m_rectView.right) dx = m_rectView.right - dw;
+    if (dx < m_rectView.left) dx = m_rectView.left; 
+    else if (dx + dw > m_rectView.right) dx = m_rectView.right - dw;
+    
+    if (dy < m_rectView.top) dy = m_rectView.top; 
+    else if (dy + dh > m_rectView.bottom) dy = m_rectView.bottom - dh;
+    
+    m_rectZoom = CRect(round(dx), round(dy), round(dx + dw), round(dy + dh));
 
-	if (dy < m_rectView.top) dy = m_rectView.top;
-	else if (dy + dh > m_rectView.bottom) dy = m_rectView.bottom - dh;
-
-	m_rectZoom = CRect(round(dx), round(dy), round(dx + dw), round(dy + dh));
-
-	m_ptOffset.x = 0;
-	m_ptOffset.y = 0;
+    m_ptOffset.x = 0;
+    m_ptOffset.y = 0;
 }
 
 
 void TViewer::Zooming(short zDelta) {
-	if (zDelta > 0) {           // zoom in
-		if (MAX_ZOOM > m_dZoom) {
-			m_dZoom += m_dZoom * RATE_ZOOMING;
-			CalcZoomRect(m_ptZoom);
-		}
-		else
-			m_dZoom = MAX_ZOOM;
-	}
-	else {                      // zoom out
-		if (MIN_ZOOM < m_dZoom) {
-			m_dZoom -= m_dZoom * RATE_ZOOMING;
-			CalcZoomRect(m_ptZoom);
-		}
-		if (MIN_ZOOM > m_dZoom) {
-			m_dZoom = MIN_ZOOM;
-			FitImage();
-		}
-	}
+    if (zDelta > 0) {           // zoom in
+        if (MAX_ZOOM > m_dZoom) {
+            m_dZoom += m_dZoom * RATE_ZOOMING;
+            CalcZoomRect(m_ptZoom);
+        }
+        else
+            m_dZoom = MAX_ZOOM;
+    }
+    else {                      // zoom out
+        if (MIN_ZOOM < m_dZoom) {
+            m_dZoom -= m_dZoom * RATE_ZOOMING;
+            CalcZoomRect(m_ptZoom);
+        }
+        if (MIN_ZOOM > m_dZoom) {
+            m_dZoom = MIN_ZOOM;
+            FitImage();
+        }
+    }
 }
 
 
@@ -198,10 +208,10 @@ END_MESSAGE_MAP()
 
 void TViewer::OnLButtonDown(UINT nFlags, CPoint point)
 {
-	if (!m_bLButton) {
-		m_bLButton = true;
-		m_ptLBStart = point + m_ptOffset;
-	}
+    if (!m_bLButton) {
+        m_bLButton = true;
+        m_ptLBStart = point + m_ptOffset;
+    }
 
 	CFrameWnd::OnLButtonDown(nFlags, point);
 }
@@ -209,18 +219,25 @@ void TViewer::OnLButtonDown(UINT nFlags, CPoint point)
 
 void TViewer::OnLButtonUp(UINT nFlags, CPoint point)
 {
-	if (m_bLButton) {
-		m_bLButton = false;
-		CalcZoomRect(m_ptZoom);
-		Invalidate(FALSE);
-	}
+    if (m_bLButton) {
+        m_bLButton = false;
+        CalcZoomRect(m_ptZoom);
+        Invalidate(FALSE);
+    }
 	CFrameWnd::OnLButtonUp(nFlags, point);
 }
 
 
 void TViewer::OnRButtonDown(UINT nFlags, CPoint point)
 {
-	m_bRButton = true;
+	if (m_orgImage.empty())
+		return;
+
+	//if (!m_bRButton) {
+	//	m_bRButton = true;
+	//}
+
+	
 
 	CFrameWnd::OnRButtonDown(nFlags, point);
 }
@@ -228,31 +245,48 @@ void TViewer::OnRButtonDown(UINT nFlags, CPoint point)
 
 void TViewer::OnRButtonUp(UINT nFlags, CPoint point)
 {
-	if (m_bRButton) {
-		if (m_iRButton == 0) {
-			m_ptRClientStart = point;
-			m_iRButton++;
-
-			m_ptRImageStart = ClientToImage(m_ptZoom, m_rectView, m_orgImage);
-
-			cv::Mat temp = m_orgImage.clone();
-			cv::drawMarker(temp, m_ptRImageStart, cv::Scalar(0, 255, 0), 0, 30, 2);
-			SetDrawImage(temp);
-		}
-		else if (m_iRButton == 1) {
-			m_ptRClientEnd = point;
-			m_iRButton = 0;
-
-			m_ptRImageEnd = ClientToImage(m_ptZoom, m_rectView, m_orgImage);
-
-			cv::Mat temp = m_orgImage.clone();
-			cv::rectangle(temp, cv::Rect(m_ptRImageStart, m_ptRImageEnd), cv::Scalar(0, 255, 0), 1);
-			SetDrawImage(temp);
-		}
-
-		Invalidate(FALSE);
-		m_bRButton = false;
-	}
+	//if (m_bRButton) {
+	//	m_bRButton = false;
+	//
+	//	if (m_ptRStart.x == -1) {
+	//		m_ptRStart = m_ptImage;
+	//	}
+	//	else {
+	//		m_ptREnd = m_ptImage;
+	//
+	//		// image pt -> client pt
+	//
+	//		// draw rect
+	//		if (m_ptREnd.x > m_ptRStart.x) {
+	//			m_rectSelected.x = m_ptRStart.x;
+	//			m_rectSelected.width = m_ptREnd.x - m_ptRStart.x;
+	//		}
+	//		else {
+	//			m_rectSelected.x = m_ptREnd.x;
+	//			m_rectSelected.width = m_ptRStart.x - m_ptREnd.x;
+	//		}
+	//
+	//		if (m_ptREnd.y > m_ptRStart.y) {
+	//			m_rectSelected.y = m_ptRStart.y;
+	//			m_rectSelected.height = m_ptREnd.y - m_ptRStart.y;
+	//		}
+	//		else {
+	//			m_rectSelected.y = m_ptREnd.y;
+	//			m_rectSelected.height = m_ptRStart.y - m_ptREnd.y;
+	//		}
+	//
+	//		cv::Mat temp = m_orgImage.clone();
+	//		cv::rectangle(temp,
+	//			m_rectSelected,
+	//			cv::Scalar(0, 0, 255), 2);
+	//
+	//		SetDrawImage(temp);
+	//		Invalidate(FALSE);
+	//
+	//		m_ptRStart	= cv::Point(-1, -1);
+	//		m_ptREnd	= cv::Point(-1, -1);
+	//	}
+	//}
 
 	CFrameWnd::OnRButtonUp(nFlags, point);
 }
@@ -261,32 +295,32 @@ void TViewer::OnRButtonUp(UINT nFlags, CPoint point)
 void TViewer::OnMouseMove(UINT nFlags, CPoint point)
 {
 	m_cs.Lock();
-	if (!m_orgImage.empty()) {
-		if (m_bLButton)
-			m_ptOffset = m_ptLBStart - point;
+    if (!m_orgImage.empty()) {
+        if (m_bLButton)
+            m_ptOffset = m_ptLBStart - point;
 
-		m_ptView = point;
-		CPoint pt = m_ptView - m_rectView.TopLeft();
-		m_ptZoom = CPoint(floor((pt.x / m_dZoom) + .5), floor((pt.y / m_dZoom) + .5));
-		m_ptZoom += CPoint(floor((m_ptOffset.x / m_dZoom) + .5), floor((m_ptOffset.y / m_dZoom) + .5));
-		m_ptZoom += m_rectZoom.TopLeft();
+        m_ptView = point;
+        CPoint pt = m_ptView - m_rectView.TopLeft();
+        m_ptZoom = CPoint(floor((pt.x / m_dZoom) + .5), floor((pt.y / m_dZoom) + .5));
+        m_ptZoom += CPoint(floor((m_ptOffset.x / m_dZoom) + .5), floor((m_ptOffset.y / m_dZoom) + .5));
+        m_ptZoom += m_rectZoom.TopLeft();
 
-		m_ptImage = ClientToImage(m_ptZoom, m_rectView, m_orgImage);
+        m_ptImage = ClientToImage(m_ptZoom, m_rectView, m_orgImage);
 
-		if (m_ptImage != cv::Point(-1, -1)) {
-			if (m_orgImage.channels() == 1) {
-				m_imgColor = cv::Scalar(m_orgImage.at<uchar>(m_ptImage));
-			}
-			else if (m_orgImage.channels() == 3) {
-				m_imgColor = cv::Scalar(m_orgImage.at<cv::Vec3b>(m_ptImage)[0],
-					m_orgImage.at<cv::Vec3b>(m_ptImage)[1],
-					m_orgImage.at<cv::Vec3b>(m_ptImage)[2]);
-			}
-		}
+        if (m_ptImage != cv::Point(-1, -1)) {
+            if (m_orgImage.channels() == 1) {
+                m_imgColor = cv::Scalar(m_orgImage.at<uchar>(m_ptImage));
+            }
+            else if (m_orgImage.channels() == 3) {
+                m_imgColor = cv::Scalar(m_orgImage.at<cv::Vec3b>(m_ptImage)[0],
+                                        m_orgImage.at<cv::Vec3b>(m_ptImage)[1],
+                                        m_orgImage.at<cv::Vec3b>(m_ptImage)[2]);
+            }
+        }
 
-		Invalidate(FALSE);
-		m_pParent->UpdateTool();
-	}
+        Invalidate(FALSE);
+        m_pParent->UpdateTool();
+    }
 	m_cs.Unlock();
 	CFrameWnd::OnMouseMove(nFlags, point);
 }
@@ -294,15 +328,15 @@ void TViewer::OnMouseMove(UINT nFlags, CPoint point)
 
 BOOL TViewer::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
-	if (!m_orgImage.empty()) {
-		CPoint ptClient = pt;
-		ScreenToClient(&ptClient);
-
-		if (PtInRect(m_clientRect, ptClient)) {
-			Zooming(zDelta);
-			Invalidate(FALSE);
-		}
-	}
+    if (!m_orgImage.empty()) {
+        CPoint ptClient = pt;
+        ScreenToClient(&ptClient);
+    
+        if (PtInRect(m_clientRect, ptClient)) {
+            Zooming(zDelta);
+            Invalidate(FALSE);
+        }
+    }
 	return CFrameWnd::OnMouseWheel(nFlags, zDelta, pt);
 }
 
@@ -318,148 +352,136 @@ void TViewer::OnPaint()
 	// background
 	pDC.FillSolidRect(m_clientRect, COLOR_BACKGROUND);
 
-	// draw image
+    // draw image
 	if (!m_orgImage.empty()) {
-		double image_w = m_drawImage.cols;
-		double image_h = m_drawImage.rows;
-		double rect_w = m_clientRect.Width();
-		double rect_h = m_clientRect.Height();
+		m_cs.Lock();
 
-		double dRectRate = rect_w / rect_h;
-		double dImageRate = image_w / image_h;
+        double image_w      = m_drawImage.cols;
+        double image_h      = m_drawImage.rows;
+        double rect_w       = m_clientRect.Width();
+        double rect_h       = m_clientRect.Height();
 
-		// resize to fit
-		int dx = 0, dy = 0, dw = 0, dh = 0;  // 그리는 좌표
-		if (dRectRate > dImageRate) {
-			dh = rect_h;
-			dw = dh * image_w / image_h;
-			dx = (rect_w - dw) / 2;
-			dy = 0;
-		}
-		else {
-			dw = rect_w;
-			dh = dw * image_h / image_w;
-			dy = (rect_h - dh) / 2;
-			dx = 0;
-		}
+        double dRectRate    = rect_w / rect_h;
+        double dImageRate   = image_w / image_h;
+        
+        // resize to fit
+        int dx = 0, dy = 0, dw = 0, dh = 0;  // 그리는 좌표
+        if (dRectRate > dImageRate) {
+            dh = rect_h;
+            dw = dh * image_w / image_h;
+            dx = (rect_w - dw) / 2;
+            dy = 0;
+        }
+        else {
+            dw = rect_w;
+            dh = dw * image_h / image_w;
+            dy = (rect_h - dh) / 2;
+            dx = 0;
+        }
 
-		::SetStretchBltMode(pDC.m_hDC, COLORONCOLOR);		//모드 설정(안해주면 영상 축소 시 깨짐 현상)
+        ::SetStretchBltMode(pDC.m_hDC, COLORONCOLOR);		//모드 설정(안해주면 영상 축소 시 깨짐 현상)
 
-		m_rectView = CRect(dx, dy, dx + dw, dy + dh);
+        m_rectView = CRect(dx, dy, dx + dw, dy + dh);
 
-		if (m_rectZoom.IsRectEmpty())
-			m_rectZoom = m_rectView;
+        if (m_rectZoom.IsRectEmpty())
+            m_rectZoom = m_rectView;
 
-		if (m_dZoom > 1.0) {
-			double x = m_rectZoom.left;
-			double y = m_rectZoom.top;
+        if (m_dZoom > 1.0) {
+            double x = m_rectZoom.left;
+            double y = m_rectZoom.top;
+        
+            dx = dx - ((x - dx) * m_dZoom);
+            dy = dy - ((y - dy) * m_dZoom);
+            dw = m_dZoom * dw;
+            dh = m_dZoom * dh;
+        }
 
-			dx = dx - ((x - dx) * m_dZoom);
-			dy = dy - ((y - dy) * m_dZoom);
-			dw = m_dZoom * dw;
-			dh = m_dZoom * dh;
-		}
+        // offset
+        dx -= m_ptOffset.x;
+        dy -= m_ptOffset.y;
 
-		// offset
-		dx -= m_ptOffset.x;
-		dy -= m_ptOffset.y;
+        // draw bitmap
+        ::StretchDIBits(pDC.m_hDC,			        //출력대상 핸들
+            dx, dy, dw, dh,				            //출력대상 좌표
+            0, 0, m_drawImage.cols, m_drawImage.rows,	//원본의 좌표
+            m_drawImage.data,							//데이터 시작 주소
+            &m_bitmapInfo,							//BITMAPINFO 구조체 시작 주소
+            DIB_RGB_COLORS,
+            SRCCOPY);
 
-		// draw bitmap
-		::StretchDIBits(pDC.m_hDC,			        //출력대상 핸들
-			dx, dy, dw, dh,				            //출력대상 좌표
-			0, 0, m_drawImage.cols, m_drawImage.rows,	//원본의 좌표
-			m_drawImage.data,							//데이터 시작 주소
-			&m_bitmapInfo,							//BITMAPINFO 구조체 시작 주소
-			DIB_RGB_COLORS,
-			SRCCOPY);
+        // draw navigation view
+        if (m_pParent->GetNaviCheck()) {
+            DisplayNavi(pDC.m_hDC, m_bitmapInfo);
+        }
 
-		// draw navigation view
-		if (m_pParent->GetNaviCheck()) {
-			DisplayNavi(pDC.m_hDC, m_bitmapInfo);
-		}
+		m_cs.Unlock();
 	}
-
-	//m_ptView = point;
-	//CPoint pt = m_ptView - m_rectView.TopLeft();
-	// 이거 역으로 연산해서 더해 줘야함....아마도 
-	//m_ptZoom = CPoint(floor((pt.x / m_dZoom) + .5), floor((pt.y / m_dZoom) + .5));
-	//m_ptZoom += CPoint(floor((m_ptOffset.x / m_dZoom) + .5), floor((m_ptOffset.y / m_dZoom) + .5));
-	//m_ptZoom += m_rectZoom.TopLeft();
-
-	CPoint pt1 = ImageToClient(m_ptRImageStart, m_rectView, m_orgImage)	;
-	CPoint pt2 = ImageToClient(m_ptRImageEnd, m_rectView, m_orgImage)	;
-	
-	CPen pen(PS_SOLID, 2, RGB(0, 0, 255));
-	pDC.SelectObject(&pen);							// 펜 선택
-	SelectObject(pDC, GetStockObject(NULL_BRUSH));	// 내부 투명
-	pDC.Rectangle(pt1.x, pt1.y, pt2.x, pt2.y);
-
 }
 
 
 void TViewer::DisplayNavi(HDC& hdc, BITMAPINFO& bitmapInfo) {
-	if (m_orgImage.empty())
-		return;
+    if (m_orgImage.empty())
+        return;
 
-	auto ClientToNavi = [&](CPoint ptClient, CRect rectNavi)->CPoint {
-		double dW = (double)rectNavi.Width() / (double)m_rectView.Width();
-		double dH = (double)rectNavi.Height() / (double)m_rectView.Height();
-		double dRate = dW > dH ? dW : dH;
+    auto ClientToNavi = [&](CPoint ptClient, CRect rectNavi)->CPoint {
+        double dW = (double)rectNavi.Width() / (double)m_rectView.Width();
+        double dH = (double)rectNavi.Height() / (double)m_rectView.Height();
+        double dRate = dW > dH ? dW : dH;
 
-		ptClient -= m_rectView.TopLeft();
+        ptClient -= m_rectView.TopLeft();
 
-		double dx = ptClient.x * dRate;
-		double dy = ptClient.y * dRate;
+        double dx = ptClient.x * dRate;
+        double dy = ptClient.y * dRate;
 
-		CPoint ptNavi = CPoint(dx, dy);
+        CPoint ptNavi = CPoint(dx, dy);
 
-		ptNavi += rectNavi.TopLeft();
+        ptNavi += rectNavi.TopLeft();
 
-		//if (dx > m_orgImage.cols - 1) dx = m_orgImage.cols - 1;
-		//else if (dx < 0) dx = 0;
-		//
-		//if (dy > m_orgImage.rows - 1) dy = m_orgImage.rows - 1;
-		//else if (dy < 0) dy = 0;
-		//
-		//ptImage = cv::Point2d(dx, dy);
+        //if (dx > m_orgImage.cols - 1) dx = m_orgImage.cols - 1;
+        //else if (dx < 0) dx = 0;
+        //
+        //if (dy > m_orgImage.rows - 1) dy = m_orgImage.rows - 1;
+        //else if (dy < 0) dy = 0;
+        //
+        //ptImage = cv::Point2d(dx, dy);
 
-		return ptNavi;
-	};
+        return ptNavi;
+    };
 
-	CRect rect;
-	GetWindowRect(rect);
-	ScreenToClient(rect);
+    CRect rect;
+    GetWindowRect(rect);
+    ScreenToClient(rect);
 
-	::StretchDIBits(hdc,
-		rect.right - m_rectView.Width() * 0.3,
-		rect.bottom - m_rectView.Height() * 0.3,
-		m_rectView.Width() * 0.3,
-		m_rectView.Height() * 0.3,
-		0, 0, m_showNavImage.cols, m_showNavImage.rows,
-		m_showNavImage.data,
-		&bitmapInfo,
-		DIB_RGB_COLORS,
-		SRCCOPY);
+    ::StretchDIBits(hdc,
+        rect.right - m_rectView.Width() * 0.3,
+        rect.bottom - m_rectView.Height() * 0.3,
+        m_rectView.Width() * 0.3,
+        m_rectView.Height() * 0.3,
+        0, 0, m_showNavImage.cols, m_showNavImage.rows,
+        m_showNavImage.data,
+        &bitmapInfo,
+        DIB_RGB_COLORS,
+        SRCCOPY);
 
-	CRect rectNavi(rect.right - m_rectView.Width() * 0.3,
-		rect.bottom - m_rectView.Height() * 0.3,
-		rect.right,
-		rect.bottom);
+    CRect rectNavi(rect.right - m_rectView.Width() * 0.3,
+        rect.bottom - m_rectView.Height() * 0.3,
+        rect.right,
+        rect.bottom);
 
-	CPoint lt = ClientToNavi(m_rectZoom.TopLeft() + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), rectNavi);
-	CPoint br = ClientToNavi(m_rectZoom.BottomRight() + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), rectNavi);
-	CPoint pt = ClientToNavi(m_ptZoom, rectNavi);
+    CPoint lt = ClientToNavi(m_rectZoom.TopLeft()       + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), rectNavi);
+    CPoint br = ClientToNavi(m_rectZoom.BottomRight()   + CPoint(m_ptOffset.x / m_dZoom, m_ptOffset.y / m_dZoom), rectNavi);
+    CPoint pt = ClientToNavi(m_ptZoom, rectNavi);
 
-	HBRUSH brush = (HBRUSH)GetStockObject(NULL_BRUSH);
-	HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
-	HPEN pen = (HPEN)CreatePen(PS_SOLID, 3, RGB(0, 255, 0));
-	HPEN oldPen = (HPEN)SelectObject(hdc, pen);
+    HBRUSH brush    = (HBRUSH)GetStockObject(NULL_BRUSH);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, brush);
+    HPEN pen        = (HPEN)CreatePen(PS_SOLID, 3, RGB(0, 255, 0));
+    HPEN oldPen     = (HPEN)SelectObject(hdc, pen);
 
-	::Rectangle(hdc, lt.x, lt.y, br.x, br.y);
-	::Ellipse(hdc, pt.x - 1, pt.y - 1, pt.x + 1, pt.y + 1);
+    ::Rectangle(hdc, lt.x, lt.y, br.x, br.y);
+    ::Ellipse(hdc, pt.x - 1, pt.y - 1, pt.x + 1, pt.y + 1);
 
-	SelectObject(hdc, oldBrush);
-	SelectObject(hdc, oldPen);
-	DeleteObject(brush);
-	DeleteObject(pen);
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(brush);
+    DeleteObject(pen);
 }

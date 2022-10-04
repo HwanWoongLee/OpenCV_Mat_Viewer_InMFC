@@ -4,12 +4,13 @@
 using namespace cv;
 using namespace std;
 
-#define IDC_CHECK_BOX	    3010
+#define IDC_CHECK_BOX			3010
 
-#define COLOR_MENU          RGB(45, 45, 48)
-#define COLOR_BACKGROUND    RGB(10, 10, 18)
-#define MAX_ZOOM            50.0
-#define MIN_ZOOM            1.0
+#define COLOR_MENU				RGB(45, 45, 48)
+#define COLOR_BACKGROUND		RGB(10, 10, 18)
+#define MAX_ZOOM				50.0
+#define MIN_ZOOM				1.0
+
 
 class TViewer;
 class CTMatView : public CWnd {
@@ -39,12 +40,16 @@ public:
     void            InitMatView();
     void            MoveWindow(CRect rect);
 
-    void            UpdateTool();
-    void            ShowTool(bool bShow);
+    void            UpdateTool();					// tool 상태 창 update
+    void            ShowTool(bool bShow);			// tool 상태 창 보일지 말지
+	void			SetGrid();						// Grid 활성화
+	bool			GetGrid() { return m_bShowGrid; }
     void            SetImage(cv::Mat image);
     cv::Mat         GetImage();
     void            GetImage(cv::Mat& image);
     bool            GetNaviCheck() { return m_checkBox.GetCheck(); }
+	cv::Rect		GetSelectedRect();
+
 
 private:
     void            SetRectArea(CRect rect);
@@ -64,6 +69,7 @@ private:
 
     bool            m_bLBDown       = false;
     bool            m_bShowTool;
+	bool			m_bShowGrid;
 
     CRect           m_rect[eRECT_NUM];
     CBrush          m_brush;
@@ -77,10 +83,10 @@ private:
 
 public:
     DECLARE_MESSAGE_MAP()
-    afx_msg int		OnCreate(LPCREATESTRUCT lpCreateStruct);
-    afx_msg void	OnShowWindow(BOOL bShow, UINT nStatus);
-    afx_msg void	OnPaint();
-    virtual BOOL	OnCommand(WPARAM wParam, LPARAM lParam);
-    afx_msg BOOL    OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
-    afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+    afx_msg int			OnCreate(LPCREATESTRUCT lpCreateStruct);
+    afx_msg void		OnShowWindow(BOOL bShow, UINT nStatus);
+    afx_msg void		OnPaint();
+    virtual BOOL		OnCommand(WPARAM wParam, LPARAM lParam);
+    afx_msg BOOL		OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
+    afx_msg HBRUSH		OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };

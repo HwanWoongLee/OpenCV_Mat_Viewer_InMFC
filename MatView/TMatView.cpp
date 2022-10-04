@@ -40,6 +40,7 @@ void CTMatView::InitMatView() {
 
     m_bLBDown   = false;
     m_bShowTool = true;
+	m_bShowGrid = false;
 }
 
 void CTMatView::UpdateTool() {
@@ -59,6 +60,10 @@ void CTMatView::ShowTool(bool bShow) {
     CreateMenu();
 
     Invalidate(FALSE);
+}
+
+void CTMatView::SetGrid() {
+	m_bShowGrid = !m_bShowGrid;
 }
 
 void CTMatView::SetImage(cv::Mat image) {
@@ -154,15 +159,16 @@ void CTMatView::CreateMenu() {
     m_btnFit.DestroyWindow();
     m_checkBox.DestroyWindow();
 
-    CreateButton(m_btnLoad, rectLoad, eBTN_LOAD, _T("Load"));
-    CreateButton(m_btnSave, rectSave, eBTN_SAVE, _T("Save"));
+    CreateButton(m_btnLoad, rectLoad, eBTN_LOAD, _T("불러오기"));
+    CreateButton(m_btnSave, rectSave, eBTN_SAVE, _T("저장"));
     CreateButton(m_btnFit,  rectFit,  eBTN_FIT, _T("Fit"));
 
     if (!m_checkBox.Create(_T("Nav"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, rectNav, this, IDC_CHECK_BOX)) {
         MessageBox(_T("CheckBox create failed"));
     }
     else {
-        SetWindowTheme(m_checkBox.m_hWnd, _T(""), _T(""));
+		SetWindowTheme(m_checkBox.m_hWnd, NULL, NULL);
+        //SetWindowTheme(m_checkBox.m_hWnd, _T(""), _T(""));
         //m_checkBox.SetCheck(m_bShowTool);
         m_checkBox.SetCheck(false);
     }
@@ -173,7 +179,8 @@ void CTMatView::CreateButton(CMFCButton& button, CRect rect, eBTN_ID btnID, LPCT
         rect, this, btnID);
 
     button.m_nFlatStyle = CMFCButton::BUTTONSTYLE_FLAT;
-    button.SetWindowTextW(str);
+	button.SetWindowTextW(str);
+	//button.SetWindowTextA(str);// SetWindowTextW(str);
 
     //버튼 문자열이 없으면 이미지.
     if (str == _T("")) {
@@ -263,6 +270,12 @@ BOOL CTMatView::SaveImageFile() {
     return TRUE;
 }
 
+cv::Rect CTMatView::GetSelectedRect() {
+	if (!m_pViewer)
+		return cv::Rect();
+
+	return m_pViewer->GetSelectedRect();
+}
 
 /////////////////////////////////////////////   Message
 
@@ -288,6 +301,9 @@ void CTMatView::OnShowWindow(BOOL bShow, UINT nStatus)
 
 void CTMatView::OnPaint()
 {
+	if (!m_pViewer)
+		return;
+
     CPaintDC dc(this);
     CRect rectClient;
     GetClientRect(rectClient);
@@ -376,4 +392,3 @@ HBRUSH CTMatView::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 
     return hbr;
 }
-
